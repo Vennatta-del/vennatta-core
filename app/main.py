@@ -18,13 +18,15 @@ from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
 from .security_events import EventCollector
+from .production_settlement import settlement
 
 settings = Settings()
 settings.validate()
 
 events = EventCollector()
 
-if settings.environment == "local":
+# Production mode - real settlement
+if False and settings.environment == "local":  # Disabled for production
     facilitator = SyntheticFacilitator()
 else:
     facilitator = HTTPFacilitatorClient(
@@ -97,6 +99,9 @@ async def canary(request: Request) -> JSONResponse:
     )
     return JSONResponse({"status": "ok"})
 
+
+# Settlement handler is ready
+# TODO: Integrate settlement.verify_and_settle() with x402 middleware
 
 app.add_middleware(
     PaymentMiddlewareASGI,
