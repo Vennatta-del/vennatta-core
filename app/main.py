@@ -12,7 +12,6 @@ from x402.extensions.payment_identifier import (
 )
 from x402.http import FacilitatorConfig, HTTPFacilitatorClient
 
-from .test_facilitator import SyntheticFacilitator
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
@@ -26,11 +25,9 @@ settings.validate()
 events = EventCollector()
 
 # Production mode - real settlement
-if False and settings.environment == "local":  # Disabled for production
-    facilitator = SyntheticFacilitator()
-else:
+# Use x402.org facilitator for Base mainnet
     facilitator = HTTPFacilitatorClient(
-        FacilitatorConfig(url=settings.facilitator_url)
+        FacilitatorConfig(url="https://x402.org/facilitator")
     )
 
 server = x402ResourceServer(facilitator)
