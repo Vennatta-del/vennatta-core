@@ -36,6 +36,30 @@ server.register(settings.network, ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
 
 routes = {
+    "POST /api/v1/extract-document": {
+        "accepts": {
+            "scheme": "exact",
+            "network": settings.network,
+            "payTo": settings.pay_to,
+            "price": "0.01 USDC",
+        },
+        "extensions": {
+            payment_identifier_resource_server_extension.key:
+                declare_payment_identifier_extension(required=True)
+        },
+    },
+    "POST /api/v1/extract-obsidian": {
+        "accepts": {
+            "scheme": "exact",
+            "network": settings.network,
+            "payTo": settings.pay_to,
+            "price": "0.01 USDC",
+        },
+        "extensions": {
+            payment_identifier_resource_server_extension.key:
+                declare_payment_identifier_extension(required=True)
+        },
+    },
     "POST /v2/paid-resource": {
         "accepts": {
             "scheme": "exact",
