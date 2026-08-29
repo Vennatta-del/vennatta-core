@@ -111,3 +111,8 @@ app.include_router(extract_router)
 # Import and add obsidian-extract endpoint
 from .extract_obsidian import router as obsidian_router
 app.include_router(obsidian_router)
+
+# Add logging for payment verification
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("x402")
