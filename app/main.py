@@ -83,3 +83,7 @@ app.add_middleware(
 # Import and add extract-document endpoint
 from .extract_document import router as extract_router
 app.include_router(extract_router)
+
+# Import and add obsidian-extract endpoint
+from .extract_obsidian import router as obsidian_router
+app.include_router(obsidian_router)
