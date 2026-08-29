@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 
 
-PLACEHOLDER_PAY_TO = "0x0000000000000000000000000000000000000001"
+PLACEHOLDER_PAY_TO = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,7 @@ class Settings:
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")
     pay_to: str = os.getenv("VENNATTA_PAY_TO", PLACEHOLDER_PAY_TO)
     placeholder_price: str = os.getenv(
-        "VENNATTA_PLACEHOLDER_PRICE", "$0.001"
+        "VENNATTA_PLACEHOLDER_PRICE", "0.01 USDC"
     )
 
     def validate(self) -> None:
