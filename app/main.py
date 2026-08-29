@@ -79,3 +79,7 @@ app.add_middleware(
     routes=routes,
     server=server,
 )
+
+# Import and add extract-document endpoint
+from .extract_document import router as extract_router
+app.include_router(extract_router)
