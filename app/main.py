@@ -41,7 +41,7 @@ server.register_extension(payment_identifier_resource_server_extension)
 routes = {
     "POST /api/v1/extract-document": {
         "accepts": {
-            "scheme": "exact",
+            "scheme": "evm",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
@@ -53,7 +53,7 @@ routes = {
     },
     "POST /api/v1/extract-obsidian": {
         "accepts": {
-            "scheme": "exact",
+            "scheme": "evm",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
@@ -65,7 +65,7 @@ routes = {
     },
     "POST /v2/paid-resource": {
         "accepts": {
-            "scheme": "exact",
+            "scheme": "evm",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": settings.placeholder_price,
