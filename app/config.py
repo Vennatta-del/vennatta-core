@@ -11,7 +11,7 @@ PLACEHOLDER_PAY_TO = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
 class Settings:
     environment: str = "production"
     allow_real_settlement: bool = True
-    facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "")
+    facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "http://localhost:8081")
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")
     pay_to: str = os.getenv("VENNATTA_PAY_TO", PLACEHOLDER_PAY_TO)
     placeholder_price: str = os.getenv(
