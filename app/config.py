@@ -9,7 +9,7 @@ PLACEHOLDER_PAY_TO = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
 
 @dataclass(frozen=True)
 class Settings:
-    environment: str = os.getenv("VENNATTA_ENV", "local")
+    environment: str = "production"
     allow_real_settlement: bool = os.getenv(
         "VENNATTA_ALLOW_REAL_SETTLEMENT", "false"
     ).lower() == "true"
