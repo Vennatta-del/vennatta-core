@@ -77,7 +77,10 @@ routes = {
     }
 }
 
-app = FastAPI(title="Vennatta x402 - Production")
+app = FastAPI(
+    title="Vennatta x402 - Production",
+    debug=True,  # enable detailed errors
+)
 
 
 @app.get("/health")
@@ -104,28 +107,24 @@ async def canary(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+# Simple non-monitized test route
+@app.get("/test")
+async def test_route():
+    return {"ok": True, "msg": "non-monitized test route"}
 
-# Import and add extraction endpoints
-from .extract_document import router as extract_router
-from .extract_obsidian import router as obsidian_router
 
-# Add x402 payment middleware BEFORE routers
-app.add_middleware(
-    PaymentMiddlewareASGI,
-    routes=routes,
-    server=server,
-)
-
-# Import and add extraction endpoints
+# Import and include routers BEFORE adding middleware
 from .extract_document import router as extract_router
 from .extract_obsidian import router as obsidian_router
 
 app.include_router(extract_router)
 app.include_router(obsidian_router)
 
-logger.info("✅ Vennatta x402 production server started")
+# Add x402 payment middleware AFTER routers are registered
+app.add_middleware(
+    PaymentMiddlewareASGI,
+    routes=routes,
+    server=server,
+)
 
-# Minimal monetized test endpoint
-@app.post("/v2/paid-resource")
-async def paid_resource():
-    return {"msg": "paid resource ok", "price": settings.placeholder_price}
+logger.info("✅ Vennatta x402 production server started")
