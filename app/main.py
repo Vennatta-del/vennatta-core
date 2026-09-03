@@ -104,12 +104,6 @@ async def canary(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
-# Add x402 payment middleware
-app.add_middleware(
-    PaymentMiddlewareASGI,
-    routes=routes,
-    server=server,
-)
 
 # Import and add extraction endpoints
 from .extract_document import router as extract_router
@@ -117,5 +111,12 @@ from .extract_obsidian import router as obsidian_router
 
 app.include_router(extract_router)
 app.include_router(obsidian_router)
+
+# Add x402 payment middleware
+app.add_middleware(
+    PaymentMiddlewareASGI,
+    routes=routes,
+    server=server,
+)
 
 logger.info("✅ Vennatta x402 production server started")
