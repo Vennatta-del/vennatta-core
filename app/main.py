@@ -120,3 +120,9 @@ app.add_middleware(
 )
 
 logger.info("✅ Vennatta x402 production server started")
+
+# Test endpoint without middleware
+@app.post("/api/v1/test-payment")
+async def test_payment():
+    """Simple test endpoint."""
+    return {"status": "payment test", "cost": "0.01 USDC"}
