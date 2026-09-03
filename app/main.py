@@ -109,20 +109,18 @@ async def canary(request: Request) -> JSONResponse:
 from .extract_document import router as extract_router
 from .extract_obsidian import router as obsidian_router
 
-app.include_router(extract_router)
-app.include_router(obsidian_router)
-
-# Add x402 payment middleware
+# Add x402 payment middleware BEFORE routers
 app.add_middleware(
     PaymentMiddlewareASGI,
     routes=routes,
     server=server,
 )
 
-logger.info("✅ Vennatta x402 production server started")
+# Import and add extraction endpoints
+from .extract_document import router as extract_router
+from .extract_obsidian import router as obsidian_router
 
-# Test endpoint without middleware
-@app.post("/api/v1/test-payment")
-async def test_payment():
-    """Simple test endpoint."""
-    return {"status": "payment test", "cost": "0.01 USDC"}
+app.include_router(extract_router)
+app.include_router(obsidian_router)
+
+logger.info("✅ Vennatta x402 production server started")
