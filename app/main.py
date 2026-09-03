@@ -124,3 +124,8 @@ app.include_router(extract_router)
 app.include_router(obsidian_router)
 
 logger.info("✅ Vennatta x402 production server started")
+
+# Minimal monetized test endpoint
+@app.post("/v2/paid-resource")
+async def paid_resource():
+    return {"msg": "paid resource ok", "price": settings.placeholder_price}
