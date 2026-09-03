@@ -10,7 +10,7 @@ from x402 import x402ResourceServer
 from x402.extensions.payment_identifier import (
     declare_payment_identifier_extension,
     payment_identifier_resource_server_extension,
-)
+#)
 from x402.http import FacilitatorConfig, HTTPFacilitatorClient
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
@@ -31,7 +31,7 @@ events = EventCollector()
 # Production facilitator for Base mainnet
 facilitator = HTTPFacilitatorClient(
     FacilitatorConfig(url="https://x402.org/facilitator")
-)
+#)
 
 server = x402ResourceServer(facilitator)
 server.register(settings.network, ExactEvmServerScheme())
@@ -110,11 +110,11 @@ from .extract_document import router as extract_router
 from .extract_obsidian import router as obsidian_router
 
 # Add x402 payment middleware BEFORE routers
-app.add_middleware(
-    PaymentMiddlewareASGI,
-    routes=routes,
-    server=server,
-)
+# app.add_middleware(
+#     PaymentMiddlewareASGI,
+#     routes=routes,
+#     server=server,
+#)
 
 # Import and add extraction endpoints
 from .extract_document import router as extract_router
