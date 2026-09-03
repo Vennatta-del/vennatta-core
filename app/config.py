@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 
 
-PLACEHOLDER_PAY_TO = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
+PLACEHOLDER_PAY_TO = "0x0000000000000000000000000000000000000000"
 
 
 @dataclass(frozen=True)
@@ -13,7 +13,7 @@ class Settings:
     allow_real_settlement: bool = True
     facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "http://localhost:8081")
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")
-    pay_to: str = os.getenv("VENNATTA_PAY_TO", PLACEHOLDER_PAY_TO)
+    pay_to: str = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
     placeholder_price: str = os.getenv(
         "VENNATTA_PLACEHOLDER_PRICE", "0.01 USDC"
     )
