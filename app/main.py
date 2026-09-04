@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 
 from x402 import x402ResourceServer
 from x402.extensions.payment_identifier import (
-    declare_payment_identifier_extension,
     payment_identifier_resource_server_extension,
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
@@ -48,12 +47,9 @@ routes = {
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
         },
-        "extensions": {
-            payment_identifier_resource_server_extension.key:
-            declare_payment_identifier_extension(
-                resource="extract-document",
-                description="Extract structured data from documents",
-            ),
+        "resource": {
+            "url": "/api/v1/extract-document",
+            "description": "Extract structured data from documents",
         },
     },
     "POST /api/v1/extract-obsidian": {
@@ -63,12 +59,9 @@ routes = {
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
         },
-        "extensions": {
-            payment_identifier_resource_server_extension.key:
-            declare_payment_identifier_extension(
-                resource="extract-obsidian",
-                description="Extract structured data from Obsidian vaults",
-            ),
+        "resource": {
+            "url": "/api/v1/extract-obsidian",
+            "description": "Extract structured data from Obsidian vaults",
         },
     },
     "POST /v2/paid-resource": {
