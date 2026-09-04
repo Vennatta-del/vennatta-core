@@ -12,7 +12,6 @@ from x402.extensions.payment_identifier import (
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
-from x402.http.types import RouteConfig, PaymentOption
 
 from .config import Settings
 from .facilitator import VennattaFacilitator
@@ -47,50 +46,16 @@ app = FastAPI(
 async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
-# Define monetized routes using proper RouteConfig structure
+# Define monetized routes - simple dict format
 routes = {
-    "/api/v1/extract-document": RouteConfig(
-        accepts=[
-            PaymentOption(
-                scheme="exact",
-                network=settings.network,
-                pay_to=settings.pay_to,
-                price="0.01 USDC",
-            )
-        ],
-        resource={
-            "url": "/api/v1/extract-document",
-            "description": "Extract structured data from documents",
+    "POST /api/v1/extract-document": {
+        "accepts": {
+            "scheme": "exact",
+            "network": settings.network,
+            "payTo": settings.pay_to,
+            "price": "0.01 USDC",
         },
-    ),
-    "/api/v1/extract-obsidian": RouteConfig(
-        accepts=[
-            PaymentOption(
-                scheme="exact",
-                network=settings.network,
-                pay_to=settings.pay_to,
-                price="0.01 USDC",
-            )
-        ],
-        resource={
-            "url": "/api/v1/extract-obsidian",
-            "description": "Extract structured data from Obsidian vaults",
-        },
-    ),
-    "/v2/paid-resource": RouteConfig(
-        accepts=[
-            PaymentOption(
-                scheme="exact",
-                network=settings.network,
-                pay_to=settings.pay_to,
-                price="0.01 USDC",
-            )
-        ],
-        resource={
-            "url": "/v2/paid-resource",
-            "description": "Example paid resource endpoint",
-        },
-    ),
+    },
 }
 
 # Register route handlers
@@ -99,16 +64,6 @@ async def extract_document(request: Request, document: dict[str, Any]) -> JSONRe
     """Extract structured data from documents."""
     logger.info(f"Processing document: {document}")
     return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
-
-@app.post("/api/v1/extract-obsidian")
-async def extract_obsidian(request: Request, vault: dict[str, Any]) -> JSONResponse:
-    """Extract structured data from Obsidian vaults."""
-    return JSONResponse({"status": "success", "data": {"extracted": "obsidian data"}})
-
-@app.post("/v2/paid-resource")
-async def paid_resource(request: Request) -> JSONResponse:
-    """Example paid resource endpoint."""
-    return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
 # Add x402 payment middleware
 app.add_middleware(
