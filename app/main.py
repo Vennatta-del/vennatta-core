@@ -38,36 +38,36 @@ server.register_extension(payment_identifier_resource_server_extension)
 # Define monetized routes
 routes = {
     "POST /api/v1/extract-document": {
-        "accepts": {
+        "accepts": [{
             "scheme": "exact",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
-        },
+        }],
         "resource": {
             "url": "/api/v1/extract-document",
             "description": "Extract structured data from documents",
         },
     },
     "POST /api/v1/extract-obsidian": {
-        "accepts": {
+        "accepts": [{
             "scheme": "exact",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
-        },
+        }],
         "resource": {
             "url": "/api/v1/extract-obsidian",
             "description": "Extract structured data from Obsidian vaults",
         },
     },
     "POST /v2/paid-resource": {
-        "accepts": {
+        "accepts": [{
             "scheme": "exact",
             "network": settings.network,
             "payTo": settings.pay_to,
             "price": "0.01 USDC",
-        },
+        }],
         "resource": {
             "url": "/v2/paid-resource",
             "description": "Example paid resource endpoint",
