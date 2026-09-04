@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: vennatta-core
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.0
+      - key: VENNATTA_RPC_URL
+        value: https://mainnet.base.org
+      - key: VENNATTA_NETWORK
+        value: eip155:8453
+      - key: VENNATTA_PLACEHOLDER_PRICE
+        value: 0.01 USDC
+    healthCheckPath: /health
+    autoDeploy: true
