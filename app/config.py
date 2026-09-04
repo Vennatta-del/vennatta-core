@@ -11,6 +11,7 @@ PLACEHOLDER_PAY_TO = "0x0000000000000000000000000000000000000000"
 class Settings:
     environment: str = "production"
     allow_real_settlement: bool = True
+    rpc_url: str = os.getenv("VENNATTA_RPC_URL", "https://mainnet.base.org")
     facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "http://localhost:8081")
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")
     pay_to: str = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"

@@ -11,13 +11,13 @@ from x402.extensions.payment_identifier import (
     declare_payment_identifier_extension,
     payment_identifier_resource_server_extension,
 )
-from x402.http import FacilitatorConfig, HTTPFacilitatorClient
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
 from .security_events import EventCollector
 from .production_settlement import settlement
+from .facilitator import VennattaFacilitator
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -28,9 +28,11 @@ settings.validate()
 
 events = EventCollector()
 
-# Production facilitator for Base mainnet
-facilitator = HTTPFacilitatorClient(
-    FacilitatorConfig(url="https://x402.org/facilitator")
+# Custom Vennatta facilitator with real EVM validation
+facilitator = VennattaFacilitator(
+    rpc_url=settings.rpc_url,
+    supported_networks=[settings.network],
+    supported_schemes=["exact"],
 )
 
 server = x402ResourceServer(facilitator)
@@ -48,7 +50,10 @@ routes = {
         },
         "extensions": {
             payment_identifier_resource_server_extension.key:
-                declare_payment_identifier_extension(required=True)
+            declare_payment_identifier_extension(
+                resource="extract-document",
+                description="Extract structured data from documents",
+            ),
         },
     },
     "POST /api/v1/extract-obsidian": {
@@ -60,7 +65,10 @@ routes = {
         },
         "extensions": {
             payment_identifier_resource_server_extension.key:
-                declare_payment_identifier_extension(required=True)
+            declare_payment_identifier_extension(
+                resource="extract-obsidian",
+                description="Extract structured data from Obsidian vaults",
+            ),
         },
     },
     "POST /v2/paid-resource": {
@@ -68,63 +76,46 @@ routes = {
             "scheme": "exact",
             "network": settings.network,
             "payTo": settings.pay_to,
-            "price": settings.placeholder_price,
+            "price": "0.01 USDC",
         },
-        "extensions": {
-            payment_identifier_resource_server_extension.key:
-                declare_payment_identifier_extension(required=True)
+        "resource": {
+            "url": "/v2/paid-resource",
+            "description": "Example paid resource endpoint",
         },
-    }
+    },
 }
 
+# Create FastAPI app
 app = FastAPI(
-    title="Vennatta x402 - Production",
-    debug=True,  # enable detailed errors
+    title="Vennatta Core API",
+    description="Production API with x402 payment protection",
+    version="2.0.0",
 )
 
+# Register routes
+@app.post("/api/v1/extract-document")
+async def extract_document(request: Request, document: dict[str, Any]) -> JSONResponse:
+    """Extract structured data from documents."""
+    return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
 
-@app.get("/health")
-async def health() -> dict[str, Any]:
-    """Health check endpoint."""
-    return {
-        "status": "production",
-        "environment": settings.environment,
-        "real_settlement": settings.allow_real_settlement,
-        "network": settings.network,
-        "wallet": settings.pay_to,
-    }
+@app.post("/api/v1/extract-obsidian")
+async def extract_obsidian(request: Request, vault: dict[str, Any]) -> JSONResponse:
+    """Extract structured data from Obsidian vaults."""
+    return JSONResponse({"status": "success", "data": {"extracted": "obsidian data"}})
 
-
-@app.get("/__canary__/status")
-async def canary(request: Request) -> JSONResponse:
-    """Canary endpoint for monitoring."""
-    events.record(
-        event_type="canary_access",
-        source=request.client.host if request.client else "unknown",
-        route=request.url.path,
-        method=request.method,
-    )
-    return JSONResponse({"status": "ok"})
-
-
-# Simple non-monitized test route
-@app.get("/test")
-async def test_route():
-    return {"ok": True, "msg": "non-monitized test route"}
-
-
-# Import and include routers BEFORE adding middleware
-from .extract_document import router as extract_router
-from .extract_obsidian import router as obsidian_router
-
-app.include_router(extract_router)
-app.include_router(obsidian_router)
+@app.post("/v2/paid-resource")
+async def paid_resource(request: Request) -> JSONResponse:
+    """Example paid resource endpoint."""
+    return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
 # Add x402 payment middleware AFTER routers are registered
 app.add_middleware(
     PaymentMiddlewareASGI,
-    routes=routes,
     server=server,
+    routes=routes,
 )
 
-logger.info("✅ Vennatta x402 production server started")
+# Register settlement handler
+settlement.register(server)
+
+logger.info("✅ Vennatta production server started")
