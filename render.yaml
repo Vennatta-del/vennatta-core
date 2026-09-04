@@ -1,14 +1,11 @@
 services:
   - type: web
     name: vennatta-core
-    env: python
+    env: docker
     region: oregon
     plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.14.0
       - key: VENNATTA_RPC_URL
         value: https://mainnet.base.org
       - key: VENNATTA_NETWORK
