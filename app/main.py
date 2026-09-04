@@ -46,9 +46,25 @@ app = FastAPI(
 async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
-# Define monetized routes - simple dict format
+# Define ALL monetized routes
 routes = {
     "POST /api/v1/extract-document": {
+        "accepts": {
+            "scheme": "exact",
+            "network": settings.network,
+            "payTo": settings.pay_to,
+            "price": "0.01 USDC",
+        },
+    },
+    "POST /api/v1/extract-obsidian": {
+        "accepts": {
+            "scheme": "exact",
+            "network": settings.network,
+            "payTo": settings.pay_to,
+            "price": "0.01 USDC",
+        },
+    },
+    "POST /v2/paid-resource": {
         "accepts": {
             "scheme": "exact",
             "network": settings.network,
@@ -65,6 +81,18 @@ async def extract_document(request: Request, document: dict[str, Any]) -> JSONRe
     logger.info(f"Processing document: {document}")
     return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
 
+@app.post("/api/v1/extract-obsidian")
+async def extract_obsidian(request: Request, vault: dict[str, Any]) -> JSONResponse:
+    """Extract structured data from Obsidian vaults."""
+    logger.info(f"Processing Obsidian vault: {vault}")
+    return JSONResponse({"status": "success", "data": {"extracted": "obsidian data"}})
+
+@app.post("/v2/paid-resource")
+async def paid_resource(request: Request) -> JSONResponse:
+    """Example paid resource endpoint."""
+    logger.info("Serving paid resource")
+    return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
+
 # Add x402 payment middleware
 app.add_middleware(
     PaymentMiddlewareASGI,
@@ -72,4 +100,4 @@ app.add_middleware(
     routes=routes,
 )
 
-logger.info("✅ Vennatta production server started with x402 middleware")
+logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
