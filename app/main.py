@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 import logging
+import traceback
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from x402 import x402ResourceServer
 from x402.extensions.payment_identifier import (
@@ -14,7 +15,6 @@ from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
-from .security_events import EventCollector
 from .facilitator import VennattaFacilitator
 
 # Setup logging
@@ -23,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 settings = Settings()
 settings.validate()
-
-events = EventCollector()
 
 # Custom Vennatta facilitator with real EVM validation
 facilitator = VennattaFacilitator(
@@ -84,11 +82,21 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Health check endpoint
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "healthy"}
+
 # Register routes
 @app.post("/api/v1/extract-document")
 async def extract_document(request: Request, document: dict[str, Any]) -> JSONResponse:
     """Extract structured data from documents."""
-    return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
+    try:
+        logger.info(f"Processing document: {document}")
+        return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
+    except Exception as e:
+        logger.error(f"Error: {e}\n{traceback.format_exc()}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 @app.post("/api/v1/extract-obsidian")
 async def extract_obsidian(request: Request, vault: dict[str, Any]) -> JSONResponse:
@@ -101,10 +109,15 @@ async def paid_resource(request: Request) -> JSONResponse:
     return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
 # Add x402 payment middleware AFTER routers are registered
-app.add_middleware(
-    PaymentMiddlewareASGI,
-    server=server,
-    routes=routes,
-)
+try:
+    app.add_middleware(
+        PaymentMiddlewareASGI,
+        server=server,
+        routes=routes,
+    )
+    logger.info("✅ Payment middleware registered successfully")
+except Exception as e:
+    logger.error(f"Failed to register payment middleware: {e}\n{traceback.format_exc()}")
+    raise
 
 logger.info("✅ Vennatta production server started")
