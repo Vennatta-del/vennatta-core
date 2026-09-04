@@ -15,7 +15,6 @@ from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
 from .security_events import EventCollector
-from .production_settlement import settlement
 from .facilitator import VennattaFacilitator
 
 # Setup logging
@@ -107,8 +106,5 @@ app.add_middleware(
     server=server,
     routes=routes,
 )
-
-# Register settlement handler
-settlement.register(server)
 
 logger.info("✅ Vennatta production server started")
