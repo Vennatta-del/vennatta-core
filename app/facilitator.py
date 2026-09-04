@@ -6,8 +6,11 @@ Implements FacilitatorClient protocol with real EVM validation.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
+from eth_account import Account
+from eth_account.messages import encode_typed_data
 from web3 import Web3
 from web3.contract import Contract
 
@@ -46,6 +49,16 @@ ERC20_ABI = [
     },
 ]
 
+# EIP-3009 TransferWithAuthorization type hash
+TRANSFER_WITH_AUTHORIZATION_TYPEHASH = Web3.keccak(
+    text="TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
+)
+
+# EIP-712 Domain type hash
+EIP712_DOMAIN_TYPEHASH = Web3.keccak(
+    text="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+)
+
 
 class VennattaFacilitator(FacilitatorClient):
     """Custom facilitator with real EVM validation for exact scheme."""
@@ -69,7 +82,10 @@ class VennattaFacilitator(FacilitatorClient):
         self.supported_networks = supported_networks or ["eip155:8453"]
         self.supported_schemes = supported_schemes or ["exact"]
         
-        logger.info(f"VennattaFacilitator initialized for networks: {self.supported_networks}")
+        # Get chain ID from RPC
+        self.chain_id = self.w3.eth.chain_id
+        
+        logger.info(f"VennattaFacilitator initialized for networks: {self.supported_networks} (chain_id={self.chain_id})")
 
     def get_supported(self) -> SupportedResponse:
         """Declare supported payment kinds."""
@@ -150,7 +166,6 @@ class VennattaFacilitator(FacilitatorClient):
                 )
 
             # Check validity window
-            import time
             current_time = int(time.time())
             valid_after = int(authorization["validAfter"])
             valid_before = int(authorization["validBefore"])
@@ -171,6 +186,15 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=payer,
                 )
 
+            # CRITICAL: Verify EIP-3009 signature
+            if not self._verify_eip3009_signature(authorization, signature, payer):
+                return VerifyResponse(
+                    is_valid=False,
+                    invalid_reason="invalid_signature",
+                    invalid_message="EIP-3009 signature verification failed",
+                    payer=payer,
+                )
+
             # Check balance
             token_address = requirements.asset
             required_amount = int(requirements.amount)
@@ -183,7 +207,7 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=payer,
                 )
 
-            logger.info(f"Payment verified for payer: {payer}, amount: {required_amount}")
+            logger.info(f"✅ Payment verified for payer: {payer}, amount: {required_amount}")
             return VerifyResponse(
                 is_valid=True,
                 invalid_reason=None,
@@ -216,18 +240,11 @@ class VennattaFacilitator(FacilitatorClient):
             value = authorization.get("value", requirements.amount)
             token_address = requirements.asset
             
-            # In production, you would:
-            # 1. Build the transferFrom transaction
-            # 2. Sign with facilitator's private key
-            # 3. Broadcast to network
-            # 4. Wait for confirmation
-            # 5. Return transaction hash
-            
-            # For now, return a mock settlement
             # TODO: Implement real transaction broadcasting
+            # For now, return a mock settlement
             tx_hash = "0x" + "00" * 32
             
-            logger.info(f"Settlement processed for payer: {payer}, amount: {value}")
+            logger.info(f"⚠️ Settlement mocked for payer: {payer}, amount: {value}")
             
             return SettleResponse(
                 success=True,
@@ -250,6 +267,75 @@ class VennattaFacilitator(FacilitatorClient):
                 network=requirements.network,
                 amount=None,
             )
+
+    def _verify_eip3009_signature(
+        self,
+        authorization: dict[str, Any],
+        signature: str,
+        expected_signer: str,
+    ) -> bool:
+        """Verify EIP-3009 TransferWithAuthorization signature."""
+        try:
+            # Build EIP-712 domain
+            domain = {
+                "name": "USD Coin",
+                "version": "2",
+                "chainId": self.chain_id,
+                "verifyingContract": Web3.to_checksum_address(authorization["to"]),
+            }
+            
+            # Build EIP-712 message
+            message = {
+                "from": Web3.to_checksum_address(authorization["from"]),
+                "to": Web3.to_checksum_address(authorization["to"]),
+                "value": int(authorization["value"]),
+                "validAfter": int(authorization["validAfter"]),
+                "validBefore": int(authorization["validBefore"]),
+                "nonce": authorization["nonce"],  # Keep as hex string
+            }
+            
+            # Encode typed data
+            encoded_message = encode_typed_data(
+                domain_types={
+                    "EIP712Domain": [
+                        {"name": "name", "type": "string"},
+                        {"name": "version", "type": "string"},
+                        {"name": "chainId", "type": "uint256"},
+                        {"name": "verifyingContract", "type": "address"},
+                    ],
+                    "TransferWithAuthorization": [
+                        {"name": "from", "type": "address"},
+                        {"name": "to", "type": "address"},
+                        {"name": "value", "type": "uint256"},
+                        {"name": "validAfter", "type": "uint256"},
+                        {"name": "validBefore", "type": "uint256"},
+                        {"name": "nonce", "type": "bytes32"},
+                    ],
+                },
+                domain_data=domain,
+                message_types={
+                    "TransferWithAuthorization": [
+                        {"name": "from", "type": "address"},
+                        {"name": "to", "type": "address"},
+                        {"name": "value", "type": "uint256"},
+                        {"name": "validAfter", "type": "uint256"},
+                        {"name": "validBefore", "type": "uint256"},
+                        {"name": "nonce", "type": "bytes32"},
+                    ],
+                },
+                domain=domain,
+                message=message,
+            )
+            
+            # Recover signer
+            recovered = Account.recover_message(encoded_message, signature=signature)
+            
+            # Verify signer matches expected (from address)
+            return recovered.lower() == Web3.to_checksum_address(expected_signer).lower()
+            
+        except Exception as e:
+            logger.error(f"Signature verification error: {e}")
+            return False
 
     async def _check_balance(
         self,
