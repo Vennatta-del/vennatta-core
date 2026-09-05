@@ -17,7 +17,7 @@ from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
-from .facilitator import VennattaFacilitator
+from .facilitator_multichain import VennattaFacilitator
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)

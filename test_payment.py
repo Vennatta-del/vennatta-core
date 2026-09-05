@@ -1,49 +1,108 @@
-"""Test x402 payment - 3-arg encode_typed_data style."""
+"""Test x402 payment - PRODUCTION READY."""
 
-import os, sys, time, json, httpx
+import base64
+import json
+import time
+import requests
 from eth_account import Account
-from eth_account.messages import encode_typed_data
 from web3 import Web3
+from eth_account.messages import encode_typed_data
 
-SENDER_PRIVATE_KEY = os.getenv("SENDER_PRIVATE_KEY")
-RECEIVER_ADDRESS = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
-USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+# Configuration
+RPC_URL = "https://mainnet.base.org"
+PRIVATE_KEY = "0x789ccac2b6367c86a59f270426ab5861b656454ff01241b45f068d2d9ab1854e"
+SENDER = Account.from_key(PRIVATE_KEY).address
+RECIPIENT = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
+TOKEN = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
 CHAIN_ID = 8453
-AMOUNT = 10000
 API_URL = "https://vennatta-core.onrender.com/api/v1/extract-document"
 
-w3 = Web3(Web3.HTTPProvider("https://mainnet.base.org"))
-account = Account.from_key(SENDER_PRIVATE_KEY)
-print(f"✅ Sender: {account.address}")
+print(f"✅ Sender: {SENDER}")
 
-usdc_contract = w3.eth.contract(address=Web3.to_checksum_address(USDC_ADDRESS), abi=[{"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"}])
-balance = usdc_contract.functions.balanceOf(Web3.to_checksum_address(account.address)).call()
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+
+# Check balance
+contract = w3.eth.contract(address=TOKEN, abi=[{"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"}])
+balance = contract.functions.balanceOf(SENDER).call()
 print(f"✅ Balance: {balance}")
 
-nonce = w3.to_hex(w3.keccak(text=f"{time.time()}-{os.urandom(8).hex()}"))
-current_time = int(time.time())
-valid_after = current_time - 60
-valid_before = current_time + 300
+if balance < 10000:
+    print("❌ Insufficient balance (need at least 10000)")
+    exit(1)
 
-# 3-arg style (works on all eth_account versions)
+# Create authorization
+nonce = w3.to_bytes(1)
+valid_after = int(time.time()) - 60
+valid_before = int(time.time()) + 3600
+
+authorization = {
+    "from": SENDER,
+    "to": RECIPIENT,
+    "value": "10000",
+    "validAfter": str(valid_after),
+    "validBefore": str(valid_before),
+    "nonce": "0x" + nonce.hex(),
+}
+
+# Sign
 signable = encode_typed_data(
-    domain_data={"name": "USD Coin", "version": "2", "chainId": CHAIN_ID, "verifyingContract": Web3.to_checksum_address(USDC_ADDRESS)},
+    domain_data={"name": "USD Coin", "version": "2", "chainId": CHAIN_ID, "verifyingContract": Web3.to_checksum_address(TOKEN)},
     message_types={"TransferWithAuthorization": [{"name": "from", "type": "address"}, {"name": "to", "type": "address"}, {"name": "value", "type": "uint256"}, {"name": "validAfter", "type": "uint256"}, {"name": "validBefore", "type": "uint256"}, {"name": "nonce", "type": "bytes32"}]},
-    message_data={"from": Web3.to_checksum_address(account.address), "to": Web3.to_checksum_address(RECEIVER_ADDRESS), "value": AMOUNT, "validAfter": valid_after, "validBefore": valid_before, "nonce": nonce},
+    message_data={"from": Web3.to_checksum_address(SENDER), "to": Web3.to_checksum_address(RECIPIENT), "value": 10000, "validAfter": valid_after, "validBefore": valid_before, "nonce": authorization["nonce"]},
 )
 
-print("✍️ Signing...")
-signed = Account.sign_message(signable, SENDER_PRIVATE_KEY)
-signature_hex = signed.signature.hex()
-print(f"✍️ Signature: {signature_hex[:66]}...{signature_hex[-66:]}")
+signed = Account.sign_message(signable, private_key=PRIVATE_KEY)
+signature = "0x" + signed.signature.hex()
 
+# Verify locally
+recovered = Account.recover_message(signable, signature=signature)
+print(f"✅ Local verification: {recovered.lower() == SENDER.lower()}")
+
+# Create payment payload (x402 V2 format)
 payment_payload = {
     "x402Version": 2,
-    "payload": {"authorization": {"from": account.address, "to": RECEIVER_ADDRESS, "value": str(AMOUNT), "validAfter": str(valid_after), "validBefore": str(valid_before), "nonce": nonce}, "signature": "0x" + signature_hex},
-    "accepted": {"scheme": "exact", "network": "eip155:8453", "asset": USDC_ADDRESS, "amount": str(AMOUNT), "payTo": RECEIVER_ADDRESS, "maxTimeoutSeconds": 300, "extra": {"name": "USD Coin", "version": "2"}},
+    "payload": {
+        "authorization": authorization,
+        "signature": signature,
+    },
+    "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "asset": TOKEN,
+        "amount": "10000",
+        "payTo": RECIPIENT,
+        "maxTimeoutSeconds": 300,
+        "extra": {"name": "USD Coin", "version": "2"},
+    },
+    "resource": {
+        "url": API_URL,
+        "description": "",
+        "mimeType": "",
+        "serviceName": "",
+    },
+}
+
+# Encode as base64
+payment_json = json.dumps(payment_payload)
+payment_b64 = base64.b64encode(payment_json.encode()).decode()
+
+# Send with correct x402 header
+headers = {
+    "Content-Type": "application/json",
+    "PAYMENT-SIGNATURE": payment_b64,
 }
 
 print(f"\n🚀 Sending to {API_URL}...")
-response = httpx.post(API_URL, json={"document": "Test"}, headers={"Content-Type": "application/json", "X-Payment-Payload": json.dumps(payment_payload)}, timeout=120)
-print(f"\n📊 Status: {response.status_code}, Body: {response.text}")
-print("\n✅✅✅ PAYMENT SUCCESSFUL! ✅✅✅" if response.status_code == 200 else f"\n⚠️ 402" if response.status_code == 402 else f"\n❌ {response.status_code}")
+
+response = requests.post(API_URL, headers=headers, json={"document": "test"})
+print(f"\n📊 Status: {response.status_code}")
+print(f"📊 Body: {response.text}")
+
+if response.status_code == 200:
+    print("\n✅✅✅ SUCCESS! PAYMENT WORKS! ✅✅✅")
+    print(f"Response: {response.json()}")
+elif response.status_code == 402:
+    print("\n⚠️ 402 Payment Required")
+    print(f"Response headers: {dict(response.headers)}")
+else:
+    print(f"\n❌ {response.status_code}")
