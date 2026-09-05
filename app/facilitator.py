@@ -30,8 +30,16 @@ class VennattaFacilitator(FacilitatorClient):
         logger.info(f"✅ VennattaFacilitator initialized on chain {self.chain_id}")
 
     def supported(self) -> SupportedResponse:
-        kinds = [SupportedKind(network=net, scheme=scheme, x402_version=2, required_extensions=[]) for net in self.supported_networks for scheme in self.supported_schemes]
-        return SupportedResponse(kinds=kinds, extensions=[], signers={})
+        logger.info("📞 supported() called")
+        try:
+            kinds = [SupportedKind(network=net, scheme=scheme, x402_version=2, required_extensions=[]) for net in self.supported_networks for scheme in self.supported_schemes]
+            response = SupportedResponse(kinds=kinds, extensions=[], signers={})
+            logger.info(f"✅ supported() returning: {response}")
+            return response
+        except Exception as e:
+            logger.error(f"❌ supported() exception: {e}")
+            logger.error(traceback.format_exc())
+            raise
 
     async def verify(self, payload: PaymentPayload, requirements: PaymentRequirements) -> VerifyResponse:
         logger.info(f"🔍 verify() called")
