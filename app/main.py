@@ -14,6 +14,7 @@ from x402.extensions.payment_identifier import (
     payment_identifier_resource_server_extension,
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
+from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
 from .facilitator import VennattaFacilitator
@@ -32,8 +33,10 @@ facilitator = VennattaFacilitator(
     supported_schemes=["exact"],
 )
 
-# Create server with ONLY our facilitator (no separate scheme registration)
+# Create server with our facilitator
 server = x402ResourceServer(facilitator)
+# Register the exact scheme for parsing/metadata (NOT for verification)
+server.register(settings.network, ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
 
 # Create FastAPI app
