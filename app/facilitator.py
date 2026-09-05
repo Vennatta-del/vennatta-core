@@ -72,35 +72,34 @@ class VennattaFacilitator(FacilitatorClient):
         """Initialize facilitator.
 
         Args:
-            rpc_url: EVM RPC endpoint (e.g., Base mainnet).
-            supported_networks: Networks to support (default: ["eip155:8453"]).
-            supported_schemes: Schemes to support (default: ["exact"]).
+            rpc_url: EVM RPC endpoint.
+            supported_networks: Networks to support (defaults to Base mainnet).
+            supported_schemes: Payment schemes (defaults to ["exact"]).
         """
-        self.rpc_url = rpc_url
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
-        
-        self.supported_networks = supported_networks or ["eip155:8453"]
-        self.supported_schemes = supported_schemes or ["exact"]
-        
-        # Get chain ID from RPC
         self.chain_id = self.w3.eth.chain_id
-        
-        logger.info(f"VennattaFacilitator initialized for networks: {self.supported_networks} (chain_id={self.chain_id})")
 
-    def get_supported(self) -> SupportedResponse:
-        """Declare supported payment kinds."""
-        kinds = []
+        default_networks = [Network(id="eip155:8453", name="Base")]
+        self.supported_networks = supported_networks or default_networks
+        self.supported_schemes = supported_schemes or ["exact"]
+
+        logger.info(f"Initialized VennattaFacilitator on chain {self.chain_id}")
+
+    def supported(self) -> SupportedResponse:
+        """Return supported payment kinds and extensions."""
+        kinds: list[SupportedKind] = []
+
         for network in self.supported_networks:
             for scheme in self.supported_schemes:
                 kinds.append(
                     SupportedKind(
-                        x402_version=2,
-                        scheme=scheme,
                         network=network,
-                        extra=None,
+                        scheme=scheme,
+                        x402_version=2,
+                        required_extensions=[],
                     )
                 )
-        
+
         return SupportedResponse(
             kinds=kinds,
             extensions=[],
@@ -114,7 +113,6 @@ class VennattaFacilitator(FacilitatorClient):
     ) -> VerifyResponse:
         """Verify payment with real EVM validation."""
         try:
-            # Extract authorization from payload
             payload_data = payload.payload
             if not payload_data or "authorization" not in payload_data:
                 return VerifyResponse(
@@ -126,7 +124,7 @@ class VennattaFacilitator(FacilitatorClient):
 
             authorization = payload_data["authorization"]
             signature = payload_data.get("signature")
-            
+
             if not signature:
                 return VerifyResponse(
                     is_valid=False,
@@ -135,7 +133,6 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=None,
                 )
 
-            # Extract payer address
             payer = authorization.get("from")
             if not payer:
                 return VerifyResponse(
@@ -145,7 +142,6 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=None,
                 )
 
-            # Validate authorization fields
             required_fields = ["from", "to", "value", "validAfter", "validBefore", "nonce"]
             for field in required_fields:
                 if field not in authorization:
@@ -156,7 +152,6 @@ class VennattaFacilitator(FacilitatorClient):
                         payer=payer,
                     )
 
-            # Validate signature format
             if not signature.startswith("0x") or len(signature) != 132:
                 return VerifyResponse(
                     is_valid=False,
@@ -165,11 +160,10 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=payer,
                 )
 
-            # Check validity window
             current_time = int(time.time())
             valid_after = int(authorization["validAfter"])
             valid_before = int(authorization["validBefore"])
-            
+
             if current_time < valid_after:
                 return VerifyResponse(
                     is_valid=False,
@@ -177,7 +171,7 @@ class VennattaFacilitator(FacilitatorClient):
                     invalid_message="Authorization not yet valid",
                     payer=payer,
                 )
-            
+
             if current_time > valid_before:
                 return VerifyResponse(
                     is_valid=False,
@@ -186,8 +180,8 @@ class VennattaFacilitator(FacilitatorClient):
                     payer=payer,
                 )
 
-            # CRITICAL: Verify EIP-3009 signature
-            if not self._verify_eip3009_signature(authorization, signature, payer):
+            # CRITICAL: Verify EIP-3009 signature (use token address as verifyingContract!)
+            if not self._verify_eip3009_signature(authorization, signature, payer, requirements.asset):
                 return VerifyResponse(
                     is_valid=False,
                     invalid_reason="invalid_signature",
@@ -198,7 +192,7 @@ class VennattaFacilitator(FacilitatorClient):
             # Check balance
             token_address = requirements.asset
             required_amount = int(requirements.amount)
-            
+
             if not await self._check_balance(payer, token_address, required_amount):
                 return VerifyResponse(
                     is_valid=False,
@@ -234,18 +228,15 @@ class VennattaFacilitator(FacilitatorClient):
             payload_data = payload.payload
             authorization = payload_data["authorization"]
             signature = payload_data.get("signature")
-            
+
             payer = authorization.get("from", "")
             recipient = authorization.get("to", requirements.pay_to)
             value = authorization.get("value", requirements.amount)
             token_address = requirements.asset
-            
-            # TODO: Implement real transaction broadcasting
-            # For now, return a mock settlement
+
             tx_hash = "0x" + "00" * 32
-            
             logger.info(f"⚠️ Settlement mocked for payer: {payer}, amount: {value}")
-            
+
             return SettleResponse(
                 success=True,
                 error_reason=None,
@@ -273,17 +264,18 @@ class VennattaFacilitator(FacilitatorClient):
         authorization: dict[str, Any],
         signature: str,
         expected_signer: str,
+        token_address: str,
     ) -> bool:
         """Verify EIP-3009 TransferWithAuthorization signature."""
         try:
-            # Build EIP-712 domain
+            # Build EIP-712 domain - use TOKEN address as verifyingContract!
             domain = {
                 "name": "USD Coin",
                 "version": "2",
                 "chainId": self.chain_id,
-                "verifyingContract": Web3.to_checksum_address(authorization["to"]),
+                "verifyingContract": Web3.to_checksum_address(token_address),
             }
-            
+
             # Build EIP-712 message
             message = {
                 "from": Web3.to_checksum_address(authorization["from"]),
@@ -291,12 +283,12 @@ class VennattaFacilitator(FacilitatorClient):
                 "value": int(authorization["value"]),
                 "validAfter": int(authorization["validAfter"]),
                 "validBefore": int(authorization["validBefore"]),
-                "nonce": authorization["nonce"],  # Keep as hex string
+                "nonce": authorization["nonce"],
             }
-            
-            # Encode typed data
-            encoded_message = encode_typed_data(
-                domain_types={
+
+            # Encode typed data using full_message format
+            full_message = {
+                "types": {
                     "EIP712Domain": [
                         {"name": "name", "type": "string"},
                         {"name": "version", "type": "string"},
@@ -312,27 +304,19 @@ class VennattaFacilitator(FacilitatorClient):
                         {"name": "nonce", "type": "bytes32"},
                     ],
                 },
-                domain_data=domain,
-                message_types={
-                    "TransferWithAuthorization": [
-                        {"name": "from", "type": "address"},
-                        {"name": "to", "type": "address"},
-                        {"name": "value", "type": "uint256"},
-                        {"name": "validAfter", "type": "uint256"},
-                        {"name": "validBefore", "type": "uint256"},
-                        {"name": "nonce", "type": "bytes32"},
-                    ],
-                },
-                domain=domain,
-                message=message,
-            )
-            
+                "primaryType": "TransferWithAuthorization",
+                "domain": domain,
+                "message": message,
+            }
+
+            encoded_message = encode_typed_data(full_message=full_message)
+
             # Recover signer
             recovered = Account.recover_message(encoded_message, signature=signature)
-            
+
             # Verify signer matches expected (from address)
             return recovered.lower() == Web3.to_checksum_address(expected_signer).lower()
-            
+
         except Exception as e:
             logger.error(f"Signature verification error: {e}")
             return False
@@ -349,13 +333,8 @@ class VennattaFacilitator(FacilitatorClient):
                 address=Web3.to_checksum_address(token_address),
                 abi=ERC20_ABI,
             )
-            
-            balance = contract.functions.balanceOf(
-                Web3.to_checksum_address(payer)
-            ).call()
-            
+            balance = contract.functions.balanceOf(Web3.to_checksum_address(payer)).call()
             return balance >= required_amount
-            
         except Exception as e:
             logger.error(f"Balance check error: {e}")
             return False
