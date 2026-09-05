@@ -102,3 +102,5 @@ class VennattaFacilitator(FacilitatorServer):
 
 # Create server instance
 facilitator = VennattaFacilitator()
+
+# Multi-chain ready: Base + Solana + DAG/Sonic coming soon
