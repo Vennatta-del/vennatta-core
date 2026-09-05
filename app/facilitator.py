@@ -13,7 +13,14 @@ from web3 import Web3
 from x402.schemas import Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedKind, SupportedResponse, VerifyResponse
 from x402.server_base import FacilitatorClient
 
+# Setup logging at the module level
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("x402")
+logger.setLevel(logging.DEBUG)
+
+# Also add a root logger to catch everything
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.DEBUG)
 
 ERC20_ABI = [
     {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
@@ -42,12 +49,13 @@ class VennattaFacilitator(FacilitatorClient):
             raise
 
     async def verify(self, payload: PaymentPayload, requirements: PaymentRequirements) -> VerifyResponse:
-        logger.info(f"🔍 verify() called")
+        logger.info(f"🔍🔍🔍 verify() called 🔍🔍🔍")
+        logger.info(f"  payload type: {type(payload)}")
+        logger.info(f"  requirements: {requirements}")
         try:
-            logger.info(f"  payload: {payload}")
-            logger.info(f"  requirements: {requirements}")
-            
             payload_data = payload.payload
+            logger.info(f"  payload.payload keys: {payload_data.keys() if isinstance(payload_data, dict) else 'not a dict'}")
+            
             if not payload_data or "authorization" not in payload_data:
                 logger.warning("Missing authorization")
                 return VerifyResponse(is_valid=False, invalid_reason="missing_authorization", invalid_message="Missing authorization", payer=None)
@@ -89,20 +97,24 @@ class VennattaFacilitator(FacilitatorClient):
                 return VerifyResponse(is_valid=False, invalid_reason="valid_before_expired", invalid_message="Expired", payer=payer)
 
             logger.info("  Verifying signature...")
-            if not self._verify_eip3009_signature(authorization, signature, payer, requirements.asset):
+            sig_valid = self._verify_eip3009_signature(authorization, signature, payer, requirements.asset)
+            logger.info(f"  Signature verification result: {sig_valid}")
+            if not sig_valid:
                 logger.warning("Signature verification FAILED")
                 return VerifyResponse(is_valid=False, invalid_reason="invalid_signature", invalid_message="Signature verification failed", payer=payer)
 
             logger.info("  Checking balance...")
-            if not await self._check_balance(payer, requirements.asset, int(requirements.amount)):
+            balance_ok = await self._check_balance(payer, requirements.asset, int(requirements.amount))
+            logger.info(f"  Balance check result: {balance_ok}")
+            if not balance_ok:
                 logger.warning("Insufficient balance")
                 return VerifyResponse(is_valid=False, invalid_reason="insufficient_balance", invalid_message="Insufficient balance", payer=payer)
 
-            logger.info(f"✅ Payment VERIFIED: {payer}, {int(requirements.amount)}")
+            logger.info(f"✅✅✅ Payment VERIFIED: {payer}, {int(requirements.amount)} ✅✅✅")
             return VerifyResponse(is_valid=True, invalid_reason=None, invalid_message=None, payer=payer)
 
         except Exception as e:
-            logger.error(f"❌ Verification EXCEPTION: {e}")
+            logger.error(f"❌❌❌ Verification EXCEPTION: {e} ❌❌❌")
             logger.error(traceback.format_exc())
             return VerifyResponse(is_valid=False, invalid_reason="verification_error", invalid_message=str(e), payer=None)
 
