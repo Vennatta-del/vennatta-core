@@ -74,7 +74,7 @@ class VennattaFacilitator(FacilitatorClient):
             if current_time > valid_before:
                 return VerifyResponse(is_valid=False, invalid_reason="valid_before_expired", invalid_message="Authorization has expired", payer=payer)
 
-            # Verify EIP-3009 signature with TOKEN as verifyingContract
+            # Verify EIP-3009 signature
             if not self._verify_eip3009_signature(authorization, signature, payer, requirements.asset):
                 return VerifyResponse(is_valid=False, invalid_reason="invalid_signature", invalid_message="EIP-3009 signature verification failed", payer=payer)
 
@@ -105,37 +105,31 @@ class VennattaFacilitator(FacilitatorClient):
     def _verify_eip3009_signature(self, authorization: dict[str, Any], signature: str, expected_signer: str, token_address: str) -> bool:
         """Verify EIP-3009 signature using manual EIP-712 hashing."""
         try:
-            # EIP-712 domain separator
-            DOMAIN_TYPE_HASH = keccak(text="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-            domain_hash = keccak(
-                Web3().eth.codec.encode(
-                    ["bytes32", "bytes32", "bytes32", "uint256", "address"],
-                    [DOMAIN_TYPE_HASH, keccak(text="USD Coin"), keccak(text="2"), self.chain_id, Web3.to_checksum_address(token_address)]
-                )
-            )
-
-            # EIP-3009 message hash
-            TYPE_HASH = keccak(text="TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
-            message_hash = keccak(
-                Web3().eth.codec.encode(
-                    ["bytes32", "address", "address", "uint256", "uint256", "uint256", "bytes32"],
-                    [
-                        TYPE_HASH,
-                        Web3.to_checksum_address(authorization["from"]),
-                        Web3.to_checksum_address(authorization["to"]),
-                        int(authorization["value"]),
-                        int(authorization["validAfter"]),
-                        int(authorization["validBefore"]),
-                        Web3.to_bytes(hexstr=authorization["nonce"]),
-                    ]
-                )
-            )
-
-            # EIP-712 final hash: keccak256("\x19\x01" || domainHash || messageHash)
-            signable_hash = keccak(Web3.to_bytes(hexstr="0x1901") + domain_hash + message_hash)
-
-            # Recover and verify
-            recovered = Account._sign_hash(signable_hash, signature).address
+            # Use eth_account's encode_typed_data which matches the client
+            from eth_account.messages import encode_typed_data
+            
+            domain = {"name": "USD Coin", "version": "2", "chainId": self.chain_id, "verifyingContract": Web3.to_checksum_address(token_address)}
+            message = {
+                "from": Web3.to_checksum_address(authorization["from"]),
+                "to": Web3.to_checksum_address(authorization["to"]),
+                "value": int(authorization["value"]),
+                "validAfter": int(authorization["validAfter"]),
+                "validBefore": int(authorization["validBefore"]),
+                "nonce": authorization["nonce"],
+            }
+            
+            full_message = {
+                "types": {
+                    "EIP712Domain": [{"name": "name", "type": "string"}, {"name": "version", "type": "string"}, {"name": "chainId", "type": "uint256"}, {"name": "verifyingContract", "type": "address"}],
+                    "TransferWithAuthorization": [{"name": "from", "type": "address"}, {"name": "to", "type": "address"}, {"name": "value", "type": "uint256"}, {"name": "validAfter", "type": "uint256"}, {"name": "validBefore", "type": "uint256"}, {"name": "nonce", "type": "bytes32"}],
+                },
+                "primaryType": "TransferWithAuthorization",
+                "domain": domain,
+                "message": message,
+            }
+            
+            signable = encode_typed_data(full_message=full_message)
+            recovered = Account.recover_message(signable, signature=signature)
             return recovered.lower() == Web3.to_checksum_address(expected_signer).lower()
 
         except Exception as e:
