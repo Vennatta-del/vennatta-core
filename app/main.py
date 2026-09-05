@@ -14,7 +14,6 @@ from x402.extensions.payment_identifier import (
     payment_identifier_resource_server_extension,
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
-from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
 from .facilitator import VennattaFacilitator
@@ -33,8 +32,8 @@ facilitator = VennattaFacilitator(
     supported_schemes=["exact"],
 )
 
+# Create server with ONLY our facilitator (no separate scheme registration)
 server = x402ResourceServer(facilitator)
-server.register(settings.network, ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
 
 # Create FastAPI app
@@ -96,30 +95,6 @@ async def paid_resource(request: Request) -> JSONResponse:
     logger.info("Serving paid resource")
     return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
-# Add exception handler to see actual errors
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global exception: {exc}")
-    logger.error(traceback.format_exc())
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc), "traceback": traceback.format_exc()}
-    )
-
-# Add x402 payment middleware
-try:
-    app.add_middleware(
-        PaymentMiddlewareASGI,
-        server=server,
-        routes=routes,
-    )
-    logger.info("✅ Middleware added successfully")
-except Exception as e:
-    logger.error(f"❌ Middleware setup failed: {e}")
-    logger.error(traceback.format_exc())
-    raise
-
-
 @app.post("/debug/verify")
 async def debug_verify(request: Request) -> JSONResponse:
     """Debug endpoint to test signature verification."""
@@ -155,6 +130,27 @@ async def debug_verify(request: Request) -> JSONResponse:
         import traceback
         return JSONResponse({"error": str(e), "traceback": traceback.format_exc()}, status_code=500)
 
-logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
+# Add exception handler to see actual errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()}
+    )
 
-# Debug endpoint to test signature verification
+# Add x402 payment middleware
+try:
+    app.add_middleware(
+        PaymentMiddlewareASGI,
+        server=server,
+        routes=routes,
+    )
+    logger.info("✅ Middleware added successfully")
+except Exception as e:
+    logger.error(f"❌ Middleware setup failed: {e}")
+    logger.error(traceback.format_exc())
+    raise
+
+logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
