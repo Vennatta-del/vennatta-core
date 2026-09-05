@@ -1,7 +1,10 @@
+"""Vennatta Core API with x402 payment protection."""
+
 from __future__ import annotations
 
 from typing import Any
 import logging
+import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -17,7 +20,7 @@ from .config import Settings
 from .facilitator import VennattaFacilitator
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 settings = Settings()
@@ -93,11 +96,27 @@ async def paid_resource(request: Request) -> JSONResponse:
     logger.info("Serving paid resource")
     return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
+# Add exception handler to see actual errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()}
+    )
+
 # Add x402 payment middleware
-app.add_middleware(
-    PaymentMiddlewareASGI,
-    server=server,
-    routes=routes,
-)
+try:
+    app.add_middleware(
+        PaymentMiddlewareASGI,
+        server=server,
+        routes=routes,
+    )
+    logger.info("✅ Middleware added successfully")
+except Exception as e:
+    logger.error(f"❌ Middleware setup failed: {e}")
+    logger.error(traceback.format_exc())
+    raise
 
 logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
