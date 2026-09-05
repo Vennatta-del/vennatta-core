@@ -120,3 +120,39 @@ except Exception as e:
     raise
 
 logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
+
+# Debug endpoint to test signature verification
+@app.post("/debug/verify")
+async def debug_verify(request: Request) -> JSONResponse:
+    """Debug endpoint to test signature verification."""
+    try:
+        data = await request.json()
+        authorization = data.get("authorization")
+        signature = data.get("signature")
+        
+        if not authorization or not signature:
+            return JSONResponse({"error": "Missing authorization or signature"}, status_code=400)
+        
+        # Test verification
+        from x402.schemas import PaymentPayload, PaymentRequirements, Network
+        
+        payload = PaymentPayload(
+            payload={"authorization": authorization, "signature": signature},
+            x402_version=2,
+        )
+        
+        requirements = PaymentRequirements(
+            scheme="exact",
+            network=Network(id="eip155:8453", name="Base"),
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            amount="10000",
+            payTo="0xdadeFD58681C5C5df68681735752a40CaAE5E152",
+            max_timeout_seconds=300,
+            extra={"name": "USD Coin", "version": "2"},
+        )
+        
+        result = await facilitator.verify(payload, requirements)
+        return JSONResponse({"verify_result": result.model_dump()})
+    except Exception as e:
+        import traceback
+        return JSONResponse({"error": str(e), "traceback": traceback.format_exc()}, status_code=500)
