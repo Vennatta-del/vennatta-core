@@ -29,15 +29,15 @@ class VennattaFacilitator(FacilitatorClient):
         self.supported_schemes = supported_schemes or ["exact"]
         logger.info(f"✅ VennattaFacilitator initialized on chain {self.chain_id}")
 
-    def supported(self) -> SupportedResponse:
-        logger.info("📞 supported() called")
+    def get_supported(self) -> SupportedResponse:
+        logger.info("📞 get_supported() called")
         try:
             kinds = [SupportedKind(network=net, scheme=scheme, x402_version=2, required_extensions=[]) for net in self.supported_networks for scheme in self.supported_schemes]
             response = SupportedResponse(kinds=kinds, extensions=[], signers={})
-            logger.info(f"✅ supported() returning: {response}")
+            logger.info(f"✅ get_supported() returning: {response}")
             return response
         except Exception as e:
-            logger.error(f"❌ supported() exception: {e}")
+            logger.error(f"❌ get_supported() exception: {e}")
             logger.error(traceback.format_exc())
             raise
 
