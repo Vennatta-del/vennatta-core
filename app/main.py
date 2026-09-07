@@ -1,4 +1,4 @@
-"""Vennatta Core API with x402 payment protection."""
+"""Vennatta Core - Multi-chain x402 payment server."""
 
 from __future__ import annotations
 
@@ -15,145 +15,89 @@ from x402.extensions.payment_identifier import (
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
+from x402.schemas import Network
 
 from .config import Settings
 from .facilitator_multichain import VennattaFacilitator
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Load settings
 settings = Settings()
 settings.validate()
 
-# Custom Vennatta facilitator with real EVM validation
+# Create FastAPI app
+app = FastAPI(title="Vennatta Core", description="Multi-chain x402 payment facilitator")
+
+# Custom Vennatta facilitator with MULTI-CHAIN support
 facilitator = VennattaFacilitator(
     rpc_url=settings.rpc_url,
-    supported_networks=[settings.network],
+    supported_networks=[
+        Network(id="eip155:8453", name="Base"),  # Base (EVM)
+        Network(id="solana:mainnet", name="Solana"),  # Solana
+    ],
     supported_schemes=["exact"],
 )
 
 # Create server with our facilitator
 server = x402ResourceServer(facilitator)
-# Register the exact scheme for parsing/metadata (NOT for verification)
-server.register(settings.network, ExactEvmServerScheme())
+
+# Register the exact scheme for EVM (Base)
+server.register(Network(id="eip155:8453", name="Base"), ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
 
-# Create FastAPI app
-app = FastAPI(
-    title="Vennatta Core API",
-    description="Production API with x402 payment protection",
-    version="2.0.0",
-)
+# Add payment middleware
+app.add_middleware(PaymentMiddlewareASGI, server=server, resource_url="/api/v1/extract-document")
 
-# Health check endpoint
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Health check endpoint."""
+    return {"status": "ok", "service": "vennatta-core", "chains": ["Base", "Solana"]}
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
+    """Health check for Render."""
     return {"status": "healthy"}
 
-# Define ALL monetized routes
-routes = {
-    "POST /api/v1/extract-document": {
-        "accepts": {
-            "scheme": "exact",
-            "network": settings.network,
-            "payTo": settings.pay_to,
-            "price": "0.01 USDC",
-        },
-    },
-    "POST /api/v1/extract-obsidian": {
-        "accepts": {
-            "scheme": "exact",
-            "network": settings.network,
-            "payTo": settings.pay_to,
-            "price": "0.01 USDC",
-        },
-    },
-    "POST /v2/paid-resource": {
-        "accepts": {
-            "scheme": "exact",
-            "network": settings.network,
-            "payTo": settings.pay_to,
-            "price": "0.01 USDC",
-        },
-    },
-}
 
-# Register route handlers
 @app.post("/api/v1/extract-document")
-async def extract_document(request: Request, document: dict[str, Any]) -> JSONResponse:
+async def extract_document() -> dict[str, str]:
     """Extract structured data from documents."""
-    logger.info(f"Processing document: {document}")
-    return JSONResponse({"status": "success", "data": {"extracted": "document data"}})
+    return {"status": "ok", "message": "Payment required for this resource"}
+
 
 @app.post("/api/v1/extract-obsidian")
-async def extract_obsidian(request: Request, vault: dict[str, Any]) -> JSONResponse:
+async def extract_obsidian() -> dict[str, str]:
     """Extract structured data from Obsidian vaults."""
-    logger.info(f"Processing Obsidian vault: {vault}")
-    return JSONResponse({"status": "success", "data": {"extracted": "obsidian data"}})
+    return {"status": "ok", "message": "Payment required for this resource"}
 
-@app.post("/v2/paid-resource")
-async def paid_resource(request: Request) -> JSONResponse:
-    """Example paid resource endpoint."""
-    logger.info("Serving paid resource")
-    return JSONResponse({"status": "success", "data": {"resource": "paid content"}})
 
 @app.post("/debug/verify")
-async def debug_verify(request: Request) -> JSONResponse:
-    """Debug endpoint to test signature verification."""
+async def debug_verify(payload: dict[str, Any]) -> dict[str, Any]:
+    """Debug endpoint to test payment verification."""
     try:
-        data = await request.json()
-        authorization = data.get("authorization")
-        signature = data.get("signature")
-        
-        if not authorization or not signature:
-            return JSONResponse({"error": "Missing authorization or signature"}, status_code=400)
-        
         from x402.schemas import PaymentPayload, PaymentRequirements, ResourceInfo
-        
+
+        pp = PaymentPayload.model_validate(payload)
         requirements = PaymentRequirements(
-            scheme="exact",
-            network="eip155:8453",
+            resource=ResourceInfo(url="https://vennatta-core.onrender.com/api/v1/extract-document", description="", mime_type=""),
+            network=Network(id="eip155:8453", name="Base"),
             asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
             amount="10000",
-            payTo="0xdadeFD58681C5C5df68681735752a40CaAE5E152",
-            maxTimeoutSeconds=300,
-            extra={"name": "USD Coin", "version": "2"},
+            pay_to="0xdadeFD58681C5C5df68681735752a40CaAE5E152",
+            max_timeout_seconds=300,
         )
-        
-        payload = PaymentPayload(
-            payload={"authorization": authorization, "signature": signature},
-            accepted=requirements,
-            resource=ResourceInfo(url="https://vennatta-core.onrender.com/api/v1/extract-document"),
-        )
-        
-        result = await facilitator.verify(payload, requirements)
+        result = await facilitator.verify(pp, requirements)
         return JSONResponse({"verify_result": result.model_dump()})
     except Exception as e:
         import traceback
         return JSONResponse({"error": str(e), "traceback": traceback.format_exc()}, status_code=500)
 
-# Add exception handler to see actual errors
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global exception: {exc}")
-    logger.error(traceback.format_exc())
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc), "traceback": traceback.format_exc()}
-    )
 
-# Add x402 payment middleware
-try:
-    app.add_middleware(
-        PaymentMiddlewareASGI,
-        server=server,
-        routes=routes,
-    )
-    logger.info("✅ Middleware added successfully")
-except Exception as e:
-    logger.error(f"❌ Middleware setup failed: {e}")
-    logger.error(traceback.format_exc())
-    raise
-
-logger.info("✅ Vennatta production server started with x402 middleware - ALL ROUTES LIVE")
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)

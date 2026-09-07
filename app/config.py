@@ -23,8 +23,9 @@ class Settings:
         if self.environment not in {"local", "testnet", "production"}:
             raise RuntimeError("Unsupported candidate environment")
 
-        if not self.network.startswith("eip155:"):
-            raise RuntimeError("Candidate currently permits EVM networks only")
+        # Allow both EVM and Solana networks
+        # if not self.network.startswith("eip155:"):
+        #     raise RuntimeError("Candidate currently permits EVM networks only")
 
         if self.environment == "local":
             if self.allow_real_settlement:
