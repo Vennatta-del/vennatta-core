@@ -15,7 +15,6 @@ from x402.extensions.payment_identifier import (
 )
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
-from x402.schemas import Network
 
 from .config import Settings
 from .facilitator_multichain import VennattaFacilitator
@@ -32,7 +31,6 @@ settings.validate()
 app = FastAPI(title="Vennatta Core", description="Multi-chain x402 payment facilitator")
 
 # Custom Vennatta facilitator with MULTI-CHAIN support
-# Pass network IDs as strings (not Network objects)
 facilitator = VennattaFacilitator(
     rpc_url=settings.rpc_url,
     supported_networks=[
@@ -97,8 +95,3 @@ async def debug_verify(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         import traceback
         return JSONResponse({"error": str(e), "traceback": traceback.format_exc()}, status_code=500)
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8081)
