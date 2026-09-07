@@ -8,9 +8,9 @@ from typing import Any
 from x402.schemas import Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedKind, SupportedResponse, VerifyResponse
 from x402.server_base import FacilitatorClient
 
-# Import both facilitators
-from facilitator import VennattaFacilitator as BaseFacilitator
-from solana_facilitator import SolanaFacilitator
+# Import both facilitators (use relative imports like main.py)
+from .facilitator import VennattaFacilitator as BaseFacilitator
+from .solana_facilitator import SolanaFacilitator
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -18,7 +18,7 @@ logger = logging.getLogger("x402")
 logger.setLevel(logging.DEBUG)
 
 
-class MultiChainFacilitator(FacilitatorClient):
+class VennattaFacilitator(FacilitatorClient):
     """
     Multi-chain x402 facilitator routing payments to appropriate chain facilitators.
     Supports EVM (Base) and Solana with automatic routing based on payment network.
@@ -125,5 +125,5 @@ class MultiChainFacilitator(FacilitatorClient):
             )
 
 
-# Create server instance
-facilitator = MultiChainFacilitator
+# Create server instance (main.py expects 'facilitator' variable)
+facilitator = VennattaFacilitator
