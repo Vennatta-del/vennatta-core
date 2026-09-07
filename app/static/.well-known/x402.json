@@ -1,0 +1,59 @@
+{
+  "name": "Vennatta Core",
+  "description": "Paid document and knowledge-extraction API using x402.",
+  "version": "2.0.0",
+  "documentation": "https://vennatta-del.github.io/vennatta-core/",
+  "repository": "https://github.com/Vennatta-del/vennatta-core",
+  "resources": [
+    {
+      "path": "/api/v1/extract-document",
+      "method": "POST",
+      "description": "Extract structured data from a document payload.",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "amount": "10000"
+        },
+        {
+          "scheme": "exact",
+          "network": "eip155:146",
+          "asset": "USDC",
+          "amount": "10000"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana:mainnet",
+          "asset": "USDC",
+          "amount": "10000"
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/extract-obsidian",
+      "method": "POST",
+      "description": "Extract structured data from an Obsidian vault payload.",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "amount": "10000"
+        },
+        {
+          "scheme": "exact",
+          "network": "eip155:146",
+          "asset": "USDC",
+          "amount": "10000"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana:mainnet",
+          "asset": "USDC",
+          "amount": "10000"
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from x402 import x402ResourceServer
 from x402.extensions.payment_identifier import (
@@ -45,6 +46,7 @@ app = FastAPI(
     description="Multi-chain x402 payment facilitator",
     version="2.0.0",
 )
+app.mount("/.well-known", StaticFiles(directory="app/static/.well-known"), name="well-known")
 
 # Health check endpoint
 @app.get("/health")
