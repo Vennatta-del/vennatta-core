@@ -29,20 +29,21 @@ class VennattaFacilitator(FacilitatorClient):
         self.base_facilitator = BaseFacilitator(rpc_url=rpc_url, supported_networks=supported_networks, supported_schemes=supported_schemes)
         self.solana_facilitator = SolanaFacilitator()
         
-        # Supported networks for both chains
+        # Supported networks for both chains - MATCH EXACT NETWORK IDS
         self.supported_networks = supported_networks or [
             Network(id="eip155:8453", name="Base"),  # Base
-            Network(id="solana:mainnet-beta", name="Solana"),  # Solana
+            Network(id="solana:mainnet", name="Solana"),  # Solana (NOT mainnet-beta!)
         ]
         self.supported_schemes = supported_schemes or ["exact"]
         
-        # Route by network ID
+        # Route by network ID - MUST MATCH EXACTLY
         self.routes = {
             "eip155:8453": self.base_facilitator,  # Base
-            "solana:mainnet-beta": self.solana_facilitator,  # Solana
+            "solana:mainnet": self.solana_facilitator,  # Solana
         }
         
         logger.info(f"✅ MultiChainFacilitator initialized: {len(self.routes)} chains")
+        logger.info(f"   Routes: {list(self.routes.keys())}")
     
     def get_supported(self) -> SupportedResponse:
         """Return supported networks from both facilitators."""
