@@ -1,4 +1,4 @@
-"""Multi-chain x402 facilitator for Vennatta Core - routes to Base or Solana."""
+"""Multi-chain x402 facilitator for Vennatta Core - routes to Base, Sonic, or Solana."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from x402.server_base import FacilitatorClient
 # Import chain facilitators
 from .solana_facilitator import SolanaFacilitator
 from .evm_facilitator import EvmFacilitator
+from .sonic_facilitator import SonicFacilitator
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -21,17 +22,19 @@ logger.setLevel(logging.DEBUG)
 class VennattaFacilitator(FacilitatorClient):
     """
     Multi-chain x402 facilitator routing payments to appropriate chain facilitators.
-    Supports EVM (Base) and Solana with automatic routing based on payment network.
+    Supports EVM (Base), Sonic/DAG, and Solana with automatic routing based on payment network.
     """
 
     def __init__(self, rpc_url: str, supported_networks: list[str] | None = None, supported_schemes: list[str] | None = None):
         # Initialize chain facilitators
         self.solana_facilitator = SolanaFacilitator()
         self.evm_facilitator = EvmFacilitator(rpc_url=rpc_url)
+        self.sonic_facilitator = SonicFacilitator()
 
-        # Supported networks for both chains
+        # Supported networks for all chains
         self.supported_networks = supported_networks or [
             "eip155:8453",  # Base
+            "eip155:146",   # Sonic/DAG
             "solana:mainnet",  # Solana
         ]
         self.supported_schemes = supported_schemes or ["exact"]
@@ -42,14 +45,16 @@ class VennattaFacilitator(FacilitatorClient):
         self.routes = {
             "eip155:8453": self.evm_facilitator,  # Base
             "eip155:1": self.evm_facilitator,     # Ethereum
+            "eip155:146": self.sonic_facilitator, # Sonic/DAG
             "solana:mainnet": self.solana_facilitator,  # Solana
         }
 
         logger.info(f"✅ MultiChainFacilitator initialized: {len(self.routes)} chains")
         logger.info(f"   Routes: {list(self.routes.keys())}")
+        logger.info(f"   🔥 3-CHAIN DOMINATION: Base, Sonic, Solana!")
 
     def get_supported(self) -> SupportedResponse:
-        """Return supported networks from both facilitators."""
+        """Return supported networks from all facilitators."""
         logger.info("📞 MultiChainFacilitator.get_supported() called")
         try:
             kinds = [
