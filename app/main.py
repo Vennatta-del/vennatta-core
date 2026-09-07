@@ -32,11 +32,12 @@ settings.validate()
 app = FastAPI(title="Vennatta Core", description="Multi-chain x402 payment facilitator")
 
 # Custom Vennatta facilitator with MULTI-CHAIN support
+# Pass network IDs as strings (not Network objects)
 facilitator = VennattaFacilitator(
     rpc_url=settings.rpc_url,
     supported_networks=[
-        Network(id="eip155:8453", name="Base"),  # Base (EVM)
-        Network(id="solana:mainnet", name="Solana"),  # Solana
+        "eip155:8453",  # Base (EVM)
+        "solana:mainnet",  # Solana
     ],
     supported_schemes=["exact"],
 )
@@ -44,8 +45,8 @@ facilitator = VennattaFacilitator(
 # Create server with our facilitator
 server = x402ResourceServer(facilitator)
 
-# Register the exact scheme for EVM (Base)
-server.register(Network(id="eip155:8453", name="Base"), ExactEvmServerScheme())
+# Register the exact scheme for EVM (Base) only
+server.register("eip155:8453", ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
 
 # Add payment middleware
@@ -85,7 +86,7 @@ async def debug_verify(payload: dict[str, Any]) -> dict[str, Any]:
         pp = PaymentPayload.model_validate(payload)
         requirements = PaymentRequirements(
             resource=ResourceInfo(url="https://vennatta-core.onrender.com/api/v1/extract-document", description="", mime_type=""),
-            network=Network(id="eip155:8453", name="Base"),
+            network="eip155:8453",
             asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
             amount="10000",
             pay_to="0xdadeFD58681C5C5df68681735752a40CaAE5E152",

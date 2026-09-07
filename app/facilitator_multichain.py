@@ -24,15 +24,15 @@ class VennattaFacilitator(FacilitatorClient):
     Supports EVM (Base) and Solana with automatic routing based on payment network.
     """
     
-    def __init__(self, rpc_url: str, supported_networks: list[Network] | None = None, supported_schemes: list[str] | None = None):
+    def __init__(self, rpc_url: str, supported_networks: list[str] | None = None, supported_schemes: list[str] | None = None):
         # Initialize both facilitators
         self.base_facilitator = BaseFacilitator(rpc_url=rpc_url, supported_networks=supported_networks, supported_schemes=supported_schemes)
         self.solana_facilitator = SolanaFacilitator()
         
-        # Supported networks for both chains - MATCH EXACT NETWORK IDS
+        # Supported networks for both chains - STRINGS, not Network objects!
         self.supported_networks = supported_networks or [
-            Network(id="eip155:8453", name="Base"),  # Base
-            Network(id="solana:mainnet", name="Solana"),  # Solana (NOT mainnet-beta!)
+            "eip155:8453",  # Base
+            "solana:mainnet",  # Solana
         ]
         self.supported_schemes = supported_schemes or ["exact"]
         
@@ -66,19 +66,19 @@ class VennattaFacilitator(FacilitatorClient):
         logger.info(f"🔍 MultiChainFacilitator.verify() called for network: {requirements.network}")
         try:
             # Get the right facilitator for this network
-            facilitator = self.routes.get(requirements.network.id)
+            facilitator = self.routes.get(requirements.network)
             
             if not facilitator:
-                logger.warning(f"Unsupported network: {requirements.network.id}")
+                logger.warning(f"Unsupported network: {requirements.network}")
                 return VerifyResponse(
                     is_valid=False,
                     invalid_reason="unsupported_network",
-                    invalid_message=f"Unsupported network: {requirements.network.id}",
+                    invalid_message=f"Unsupported network: {requirements.network}",
                     payer=None
                 )
             
             # Route to the appropriate facilitator
-            logger.info(f"🎯 Routing verify to {requirements.network.id} facilitator")
+            logger.info(f"🎯 Routing verify to {requirements.network} facilitator")
             return await facilitator.verify(payload, requirements)
             
         except Exception as e:
@@ -92,17 +92,17 @@ class VennattaFacilitator(FacilitatorClient):
     
     async def settle(self, payload: PaymentPayload, requirements: PaymentRequirements) -> SettleResponse:
         """Route payment settlement to appropriate facilitator based on network."""
-        logger.info(f"⚠️ MultiChainFacilitator.settle() called for network: {requirements.network.id}")
+        logger.info(f"⚠️ MultiChainFacilitator.settle() called for network: {requirements.network}")
         try:
             # Get the right facilitator for this network
-            facilitator = self.routes.get(requirements.network.id)
+            facilitator = self.routes.get(requirements.network)
             
             if not facilitator:
-                logger.warning(f"Unsupported network: {requirements.network.id}")
+                logger.warning(f"Unsupported network: {requirements.network}")
                 return SettleResponse(
                     success=False,
                     error_reason="unsupported_network",
-                    error_message=f"Unsupported network: {requirements.network.id}",
+                    error_message=f"Unsupported network: {requirements.network}",
                     payer="",
                     transaction="",
                     network=requirements.network,
@@ -110,7 +110,7 @@ class VennattaFacilitator(FacilitatorClient):
                 )
             
             # Route to the appropriate facilitator
-            logger.info(f"🎯 Routing settle to {requirements.network.id} facilitator")
+            logger.info(f"🎯 Routing settle to {requirements.network} facilitator")
             return await facilitator.settle(payload, requirements)
             
         except Exception as e:
