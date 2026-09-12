@@ -1,3 +1,4 @@
+import os
 """Payment utilities for x402 protocol."""
 
 import base64
@@ -113,7 +114,7 @@ def create_payment_header(
 if __name__ == "__main__":
     import requests
     
-    PRIVATE_KEY = "0x789ccac2b6367c86a59f270426ab5861b656454ff01241b45f068d2d9ab1854e"
+    PRIVATE_KEY = os.getenv("VENNATTA_AGENT_PRIVATE_KEY", "")
     RECIPIENT = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
     TOKEN = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     API_URL = "https://vennatta-core.onrender.com/api/v1/extract-document"
