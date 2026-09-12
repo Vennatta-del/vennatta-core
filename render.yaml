@@ -10,7 +10,19 @@ services:
         value: https://mainnet.base.org
       - key: VENNATTA_NETWORK
         value: eip155:8453
+      - key: VENNATTA_FACILITATOR_URL
+        sync: false
+      - key: VENNATTA_PAY_TO
+        value: 0x98807Ecce0D4F555d0447F79E7BdD9AA2aF0b767
       - key: VENNATTA_PLACEHOLDER_PRICE
         value: 0.01 USDC
+      - key: VENNATTA_ENVIRONMENT
+        value: production
+      - key: VENNATTA_ALLOW_REAL_SETTLEMENT
+        value: "true"
+      - key: CDP_API_KEY_ID
+        sync: false
+      - key: CDP_API_KEY_SECRET
+        sync: false
     healthCheckPath: /health
     autoDeploy: true

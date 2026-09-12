@@ -9,12 +9,13 @@ PLACEHOLDER_PAY_TO = "0x0000000000000000000000000000000000000000"
 
 @dataclass(frozen=True)
 class Settings:
-    environment: str = "production"
+    environment: str = os.getenv("VENNATTA_ENVIRONMENT", "local")
+    cdp_environment: str = os.getenv("CDP_ENVIRONMENT", "sandbox")
     allow_real_settlement: bool = True
     rpc_url: str = os.getenv("VENNATTA_RPC_URL", "https://mainnet.base.org")
-    facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "http://localhost:8081")
+    facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "https://api.cdp.coinbase.com/platform/v2/x402")
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")
-    pay_to: str = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
+    pay_to: str = os.getenv("VENNATTA_PAY_TO", "0x98807Ecce0D4F555d0447F79E7BdD9AA2aF0b767")
     placeholder_price: str = os.getenv(
         "VENNATTA_PLACEHOLDER_PRICE", "0.01 USDC"
     )
