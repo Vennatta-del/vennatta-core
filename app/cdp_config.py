@@ -1,33 +1,29 @@
-"""CDP configuration with network → base URL mapping and auth headers."""
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Dict
 
-@dataclass
+
+@dataclass(frozen=True)
 class CDPConfig:
-    """CDP API configuration."""
     api_key: str
     api_secret: str
-    network: str = "base-sepolia"
-    
-    @property
-    def base_url(self) -> str:
-        """Get CDP base URL."""
-        if "sandbox" in self.api_key.lower() or "test" in self.network.lower():
-            return "https://sandbox.cdp.coinbase.com"
-        return "https://api.cdp.coinbase.com"
+    network: str = "eip155:8453"
 
-# Load from environment
-CDP_API_KEY = os.getenv("CDP_API_KEY", "2b20d4e3-3855-445b-a3b9-9b6bd40f4dee")
-CDP_API_SECRET = os.getenv("CDP_API_SECRET", "p3cNf7gLbXFjdSfj+ivsC7+OybsJXOeswx5POZiAKj+rqTq/S2Fr2FsxWJUvxkWUYA/nGMLlAqGH9IeEfv2q6w==")
+    def validate(self) -> None:
+        if not self.api_key or not self.api_secret:
+            raise RuntimeError(
+                "CDP credentials must be supplied through the runtime secret store"
+            )
+        if self.network.startswith("test") or "sandbox" in self.network.lower():
+            raise RuntimeError("Sandbox configuration cannot run in production")
 
-# Network → Base URL mapping
-NETWORK_URLS: Dict[str, str] = {
-    "base-sepolia": "https://sandbox.cdp.coinbase.com",
-    "base-mainnet": "https://api.cdp.coinbase.com",
-}
 
-print("✅ CDP Config loaded")
-print(f"   Sandbox URL: https://sandbox.cdp.coinbase.com")
-print(f"   Production URL: https://api.cdp.coinbase.com")
+CDP_API_KEY = os.getenv("CDP_API_KEY_ID", "")
+CDP_API_SECRET = os.getenv("CDP_API_KEY_SECRET", "")
+
+config = CDPConfig(
+    api_key=CDP_API_KEY,
+    api_secret=CDP_API_SECRET,
+    network=os.getenv("VENNATTA_NETWORK", "eip155:8453"),
+)
