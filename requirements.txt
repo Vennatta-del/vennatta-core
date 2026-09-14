@@ -13,3 +13,5 @@ solana>=0.32.0
 solders>=0.21.0
 base58>=2.1.0
 uvicorn>=0.30.0
+
+cdp-sdk==1.48.0

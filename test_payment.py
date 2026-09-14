@@ -1,5 +1,7 @@
 """Test x402 payment - PRODUCTION READY."""
 
+import os
+
 import base64
 import json
 import time
@@ -10,7 +12,7 @@ from eth_account.messages import encode_typed_data
 
 # Configuration
 RPC_URL = "https://mainnet.base.org"
-PRIVATE_KEY = "0x789ccac2b6367c86a59f270426ab5861b656454ff01241b45f068d2d9ab1854e"
+PRIVATE_KEY = os.environ["TEST_PRIVATE_KEY"]
 SENDER = Account.from_key(PRIVATE_KEY).address
 RECIPIENT = "0xdadeFD58681C5C5df68681735752a40CaAE5E152"
 TOKEN = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # USDC on Base
