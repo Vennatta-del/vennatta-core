@@ -11,7 +11,10 @@ PLACEHOLDER_PAY_TO = "0x0000000000000000000000000000000000000000"
 class Settings:
     environment: str = os.getenv("VENNATTA_ENVIRONMENT", "local")
     cdp_environment: str = os.getenv("CDP_ENVIRONMENT", "sandbox")
-    allow_real_settlement: bool = True
+    allow_real_settlement: bool = (
+        os.getenv("VENNATTA_ALLOW_REAL_SETTLEMENT", "false").lower()
+        in {"1", "true", "yes", "on"}
+    )
     rpc_url: str = os.getenv("VENNATTA_RPC_URL", "https://mainnet.base.org")
     facilitator_url: str = os.getenv("VENNATTA_FACILITATOR_URL", "https://api.cdp.coinbase.com/platform/v2/x402")
     network: str = os.getenv("VENNATTA_NETWORK", "eip155:8453")

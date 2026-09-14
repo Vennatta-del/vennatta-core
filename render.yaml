@@ -20,6 +20,8 @@ services:
         value: production
       - key: VENNATTA_ALLOW_REAL_SETTLEMENT
         value: "true"
+      - key: CDP_ENVIRONMENT
+        value: production
       - key: CDP_API_KEY_ID
         sync: false
       - key: CDP_API_KEY_SECRET
