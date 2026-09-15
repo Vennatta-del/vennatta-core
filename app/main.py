@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from x402 import x402ResourceServer
@@ -39,6 +40,19 @@ facilitator = HTTPFacilitatorClient(
 server = x402ResourceServer(facilitator)
 server.register(settings.network, ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
+
+class ExceptionLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            logger.exception(
+                "Unhandled request error method=%s path=%s",
+                request.method,
+                request.url.path,
+            )
+            raise
+
 
 app = FastAPI(
     title="Vennatta Core API",
