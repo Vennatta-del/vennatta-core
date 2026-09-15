@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -33,8 +34,19 @@ if settings.network != "eip155:8453":
         f"First production path is Base mainnet only; got {settings.network}"
     )
 
+cdp_api_key_id = os.getenv("CDP_API_KEY_ID")
+cdp_api_key_secret = os.getenv("CDP_API_KEY_SECRET")
+
+if not cdp_api_key_id or not cdp_api_key_secret:
+    raise RuntimeError(
+        "CDP_API_KEY_ID and CDP_API_KEY_SECRET are required for production"
+    )
+
 facilitator = HTTPFacilitatorClient(
-    create_facilitator_config()
+    create_facilitator_config(
+        api_key_id=cdp_api_key_id,
+        api_key_secret=cdp_api_key_secret,
+    )
 )
 
 server = x402ResourceServer(facilitator)
