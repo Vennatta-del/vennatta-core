@@ -181,3 +181,22 @@ app.add_middleware(
     routes=routes,
     server=server,
 )
+
+class OuterExceptionLogger:
+    def __init__(self, wrapped):
+        self.wrapped = wrapped
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await self.wrapped(scope, receive, send)
+        except Exception:
+            logger.exception(
+                "OUTER ASGI FAILURE method=%s path=%s",
+                scope.get("method"),
+                scope.get("path"),
+            )
+            raise
+
+
+app = OuterExceptionLogger(app)
+
