@@ -59,6 +59,15 @@ def load_individual_secret_files() -> None:
                 os.environ[name] = value
 
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    force=True,
+)
+logging.getLogger("x402").setLevel(logging.INFO)
+logging.getLogger("x402.http").setLevel(logging.INFO)
+logger = logging.getLogger("vennatta")
+
 load_secret_file()
 load_individual_secret_files()
 logger.info(
@@ -68,16 +77,6 @@ logger.info(
     len(os.getenv("CDP_API_KEY_ID", "")),
     len(os.getenv("CDP_API_KEY_SECRET", "")),
 )
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    force=True,
-)
-logging.getLogger("x402").setLevel(logging.INFO)
-logging.getLogger("x402.http").setLevel(logging.INFO)
-logger = logging.getLogger("vennatta")
 
 settings = Settings()
 settings.validate()
