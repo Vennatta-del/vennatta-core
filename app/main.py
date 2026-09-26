@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -22,6 +23,43 @@ from x402.http.types import RouteConfig
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
+
+
+def load_secret_file(path: str = "/etc/secrets/vennatta-production.env") -> None:
+    secret_path = Path(path)
+    if not secret_path.is_file():
+        return
+
+    for raw_line in secret_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if key and value and not os.getenv(key):
+            os.environ[key] = value
+
+
+def load_individual_secret_files() -> None:
+    secret_names = (
+        "CDP_API_KEY_ID",
+        "CDP_API_KEY_SECRET",
+        "USDC_ADDRESS",
+    )
+
+    for name in secret_names:
+        path = Path("/etc/secrets") / name
+        if path.is_file() and not os.getenv(name):
+            value = path.read_text().strip()
+            if value:
+                os.environ[name] = value
+
+
+load_secret_file()
+load_individual_secret_files()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vennatta")
