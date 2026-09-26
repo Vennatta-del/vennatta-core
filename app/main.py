@@ -94,6 +94,35 @@ logging.getLogger("x402").setLevel(logging.INFO)
 logging.getLogger("x402.http").setLevel(logging.INFO)
 logger = logging.getLogger("vennatta")
 
+logger.info(
+    "SECRET_MOUNT_DIAGNOSTIC_BEGIN path=/etc/secrets",
+)
+
+_secret_dir = Path("/etc/secrets")
+_secret_names = (
+    "CDP_API_KEY_ID",
+    "CDP_API_KEY_SECRET",
+    "USDC_ADDRESS",
+)
+
+if not _secret_dir.is_dir():
+    logger.info(
+        "SECRET_MOUNT_DIAGNOSTIC directory_exists=False",
+    )
+else:
+    for _name in _secret_names:
+        _path = _secret_dir / _name
+        logger.info(
+            "SECRET_MOUNT_DIAGNOSTIC name=%s exists=%s size=%s",
+            _name,
+            _path.is_file(),
+            _path.stat().st_size if _path.is_file() else 0,
+        )
+
+logger.info(
+    "SECRET_MOUNT_DIAGNOSTIC_END",
+)
+
 load_secret_file()
 load_individual_secret_files()
 logger.info(
