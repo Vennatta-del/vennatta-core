@@ -39,3 +39,6 @@ Thumbs.db
 htmlcov/
 .env
 .env
+
+checkpoint.headers
+checkpoint.body
