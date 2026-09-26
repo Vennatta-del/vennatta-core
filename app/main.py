@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import logging
 import os
 from pathlib import Path
@@ -61,11 +62,28 @@ def load_individual_secret_files() -> None:
 load_secret_file()
 load_individual_secret_files()
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    force=True,
+)
+logging.getLogger("x402").setLevel(logging.INFO)
+logging.getLogger("x402.http").setLevel(logging.INFO)
 logger = logging.getLogger("vennatta")
 
 settings = Settings()
 settings.validate()
+
+logger.info(
+    "runtime diagnostics: python=%s x402=%s cdp_sdk=%s "
+    "key_loaded=%s secret_loaded=%s secret_file=%s",
+    __import__("sys").version.split()[0],
+    importlib.metadata.version("x402"),
+    importlib.metadata.version("cdp-sdk"),
+    bool(os.getenv("CDP_API_KEY_ID")),
+    bool(os.getenv("CDP_API_KEY_SECRET")),
+    Path("/etc/secrets/vennatta-production.env").is_file(),
+)
 
 if settings.network != "eip155:8453":
     raise RuntimeError(
