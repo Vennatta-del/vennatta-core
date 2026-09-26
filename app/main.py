@@ -148,11 +148,6 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@app.get("/_diagnostics/reachability")
-async def diagnostics_reachability() -> dict[str, str]:
-    logger.info("DIAGNOSTIC REACHABILITY REQUEST RECEIVED")
-    return {"status": "reachable"}
-
 @app.get("/")
 async def root() -> dict[str, Any]:
     return {
