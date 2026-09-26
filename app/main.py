@@ -44,6 +44,32 @@ def load_secret_file(path: str = "/etc/secrets/vennatta-production.env") -> None
             os.environ[key] = value
 
 
+def log_render_secret_file_metadata() -> None:
+    secret_dir = Path("/etc/secrets")
+    names = (
+        "CDP_API_KEY_ID",
+        "CDP_API_KEY_SECRET",
+        "USDC_ADDRESS",
+    )
+
+    if not secret_dir.is_dir():
+        logger.info(
+            "Render secret directory: path=%s exists=False",
+            secret_dir,
+        )
+        return
+
+    metadata = {}
+    for name in names:
+        path = secret_dir / name
+        metadata[name] = {
+            "exists": path.is_file(),
+            "size": path.stat().st_size if path.is_file() else 0,
+        }
+
+    logger.info("Render secret files: %s", metadata)
+
+
 def load_individual_secret_files() -> None:
     secret_names = (
         "CDP_API_KEY_ID",
