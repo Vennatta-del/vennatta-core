@@ -61,6 +61,14 @@ def load_individual_secret_files() -> None:
 
 load_secret_file()
 load_individual_secret_files()
+logger.info(
+    "CDP runtime: id_loaded=%s secret_loaded=%s id_length=%s secret_length=%s",
+    bool(os.getenv("CDP_API_KEY_ID")),
+    bool(os.getenv("CDP_API_KEY_SECRET")),
+    len(os.getenv("CDP_API_KEY_ID", "")),
+    len(os.getenv("CDP_API_KEY_SECRET", "")),
+)
+
 
 logging.basicConfig(
     level=logging.INFO,
