@@ -53,8 +53,8 @@ def load_individual_secret_files() -> None:
 
     for name in secret_names:
         path = Path("/etc/secrets") / name
-        if path.is_file() and not os.getenv(name):
-            value = path.read_text().strip()
+        if path.is_file():
+            value = path.read_text(encoding="utf-8").strip()
             if value:
                 os.environ[name] = value
 
