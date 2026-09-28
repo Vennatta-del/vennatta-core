@@ -207,7 +207,7 @@ routes: dict[str, RouteConfig] = {
             )
         ],
         mime_type="application/json",
-        description="Extract structured data from a document payload.",
+        description="Paid bounded document extraction for autonomous agents from public HTTP(S) documents or supplied text.",
     ),
     "POST /api/v1/extract-obsidian": RouteConfig(
         accepts=[
