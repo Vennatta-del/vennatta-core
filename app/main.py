@@ -19,11 +19,10 @@ from x402.extensions.payment_identifier import (
     payment_identifier_resource_server_extension,
 )
 from x402.extensions.bazaar import (
-    DeclareBodyDiscoveryConfig,
     OutputConfig,
     bazaar_resource_server_extension,
-    declare_discovery_extension,
 )
+from .bazaar_compat import declare_body_discovery_extension
 from x402.http import HTTPFacilitatorClient, PaymentOption
 from cdp.x402 import create_facilitator_config
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
@@ -188,9 +187,8 @@ routes: dict[str, RouteConfig] = {
         ),
         service_name="Vennatta Document Extraction",
         tags=["documents", "extraction", "research"],
-        extensions=declare_discovery_extension(
-            DeclareBodyDiscoveryConfig(
-                input={
+        extensions=declare_body_discovery_extension(
+            input={
                 "document_text": (
                     "Ada Lovelace worked on the Analytical Engine."
                 ),
@@ -218,6 +216,8 @@ routes: dict[str, RouteConfig] = {
                     },
                 },
             },
+            body_type="json",
+            method="POST",
             output=OutputConfig(
                 example={
                     "status": "success",
@@ -255,6 +255,7 @@ routes: dict[str, RouteConfig] = {
         description="Extract structured data from an Obsidian vault payload.",
     ),
 }
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
