@@ -18,6 +18,11 @@ from x402 import x402ResourceServer
 from x402.extensions.payment_identifier import (
     payment_identifier_resource_server_extension,
 )
+from x402.extensions.bazaar import (
+    OutputConfig,
+    bazaar_resource_server_extension,
+    declare_discovery_extension,
+)
 from x402.http import HTTPFacilitatorClient, PaymentOption
 from cdp.x402 import create_facilitator_config
 from x402.http.middleware.fastapi import PaymentMiddlewareASGI
@@ -138,6 +143,7 @@ facilitator = HTTPFacilitatorClient(
 server = x402ResourceServer(facilitator)
 server.register(settings.network, ExactEvmServerScheme())
 server.register_extension(payment_identifier_resource_server_extension)
+server.register_extension(bazaar_resource_server_extension)
 
 class ExceptionLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -175,7 +181,64 @@ routes: dict[str, RouteConfig] = {
             )
         ],
         mime_type="application/json",
-        description="Paid bounded document extraction for autonomous agents from public HTTP(S) documents or supplied text.",
+        description=(
+            "Extract structured text, summaries, or metadata from supplied "
+            "document text or a public HTTP(S) document URL."
+        ),
+        service_name="Vennatta Document Extraction",
+        tags=["documents", "extraction", "research"],
+        extensions=declare_discovery_extension(
+            input={
+                "document_text": (
+                    "Ada Lovelace worked on the Analytical Engine."
+                ),
+                "extraction_mode": "full",
+            },
+            input_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "document_text": {
+                        "type": "string",
+                        "description": "Text to extract or summarize.",
+                        "maxLength": 2_000_000,
+                    },
+                    "document_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Public HTTP(S) document URL.",
+                    },
+                    "extraction_mode": {
+                        "type": "string",
+                        "enum": ["full", "summary", "metadata"],
+                        "default": "full",
+                        "description": "Requested extraction mode.",
+                    },
+                },
+            },
+            output=OutputConfig(
+                example={
+                    "status": "success",
+                    "data": {
+                        "extracted": "document data",
+                    },
+                },
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "status": {"type": "string"},
+                        "data": {
+                            "type": "object",
+                            "properties": {
+                                "extracted": {"type": "string"},
+                            },
+                            "required": ["extracted"],
+                        },
+                    },
+                    "required": ["status", "data"],
+                },
+            ),
+        ),
     ),
     "POST /api/v1/extract-obsidian": RouteConfig(
         accepts=[
