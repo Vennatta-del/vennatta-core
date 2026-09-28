@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -24,6 +25,21 @@ from x402.http.types import RouteConfig
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
+from .security_middleware import ContentSizeLimitMiddleware
+
+
+class DocumentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_url: HttpUrl | None = None
+    document_text: str | None = Field(
+        default=None,
+        max_length=2_000_000,
+    )
+    extraction_mode: str = Field(
+        default="full",
+        pattern="^(full|summary|metadata)$",
+    )
 
 
 def load_secret_file(path: str = "/etc/secrets/vennatta-production.env") -> None:
@@ -94,58 +110,10 @@ logging.getLogger("x402").setLevel(logging.INFO)
 logging.getLogger("x402.http").setLevel(logging.INFO)
 logger = logging.getLogger("vennatta")
 
-logger.info(
-    "SECRET_MOUNT_DIAGNOSTIC_BEGIN path=/etc/secrets",
-)
-
-_secret_dir = Path("/etc/secrets")
-_secret_names = (
-    "CDP_API_KEY_ID",
-    "CDP_API_KEY_SECRET",
-    "USDC_ADDRESS",
-)
-
-if not _secret_dir.is_dir():
-    logger.info(
-        "SECRET_MOUNT_DIAGNOSTIC directory_exists=False",
-    )
-else:
-    for _name in _secret_names:
-        _path = _secret_dir / _name
-        logger.info(
-            "SECRET_MOUNT_DIAGNOSTIC name=%s exists=%s size=%s",
-            _name,
-            _path.is_file(),
-            _path.stat().st_size if _path.is_file() else 0,
-        )
-
-logger.info(
-    "SECRET_MOUNT_DIAGNOSTIC_END",
-)
-
 load_secret_file()
 load_individual_secret_files()
-logger.info(
-    "CDP runtime: id_loaded=%s secret_loaded=%s id_length=%s secret_length=%s",
-    bool(os.getenv("CDP_API_KEY_ID")),
-    bool(os.getenv("CDP_API_KEY_SECRET")),
-    len(os.getenv("CDP_API_KEY_ID", "")),
-    len(os.getenv("CDP_API_KEY_SECRET", "")),
-)
-
 settings = Settings()
 settings.validate()
-
-logger.info(
-    "runtime diagnostics: python=%s x402=%s cdp_sdk=%s "
-    "key_loaded=%s secret_loaded=%s secret_file=%s",
-    __import__("sys").version.split()[0],
-    importlib.metadata.version("x402"),
-    importlib.metadata.version("cdp-sdk"),
-    bool(os.getenv("CDP_API_KEY_ID")),
-    bool(os.getenv("CDP_API_KEY_SECRET")),
-    Path("/etc/secrets/vennatta-production.env").is_file(),
-)
 
 if settings.network != "eip155:8453":
     raise RuntimeError(
@@ -240,7 +208,7 @@ async def root() -> dict[str, Any]:
 @app.post("/api/v1/extract-document")
 async def extract_document(
     request: Request,
-    document: dict[str, Any],
+    document: DocumentRequest,
 ) -> JSONResponse:
     logger.info("Processing document request")
     return JSONResponse(
@@ -262,6 +230,12 @@ app.add_middleware(
     routes=routes,
     server=server,
 )
+
+app.add_middleware(
+    ContentSizeLimitMiddleware,
+    max_bytes=2_500_000,
+)
+
 
 class OuterExceptionLogger:
     def __init__(self, wrapped):
