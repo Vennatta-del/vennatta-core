@@ -1,6 +1,6 @@
 {
   "name": "Vennatta Core",
-  "description": "Paid structured document extraction for autonomous agents.",
+  "description": "Paid, bounded document extraction for autonomous agents. Returns structured text, summary, entities, and metadata from public HTTP(S) documents or supplied text.",
   "version": "2.1.0",
   "documentation": "https://vennatta-del.github.io/vennatta-core/",
   "repository": "https://github.com/Vennatta-del/vennatta-core",
