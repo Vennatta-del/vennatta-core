@@ -19,6 +19,7 @@ from x402.extensions.payment_identifier import (
     payment_identifier_resource_server_extension,
 )
 from x402.extensions.bazaar import (
+    DeclareBodyDiscoveryConfig,
     OutputConfig,
     bazaar_resource_server_extension,
     declare_discovery_extension,
@@ -188,7 +189,8 @@ routes: dict[str, RouteConfig] = {
         service_name="Vennatta Document Extraction",
         tags=["documents", "extraction", "research"],
         extensions=declare_discovery_extension(
-            input={
+            DeclareBodyDiscoveryConfig(
+                input={
                 "document_text": (
                     "Ada Lovelace worked on the Analytical Engine."
                 ),
