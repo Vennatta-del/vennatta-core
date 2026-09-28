@@ -11,6 +11,9 @@ Date: 2026-09-28
 - Result: HTTP 200
 - Payment response header received
 - HTTP 200 confirmed
-- Settlement transaction not independently verified
-- Returned transaction reference was malformed: 65 hex digits
-- Base RPC rejected the reference because of an odd number of digits
+- Settlement transaction verified on Base mainnet by Base JSON-RPC
+- Transaction: 0x4eff2a1ea6c8da472ea3d0161c3ad76a54de2801461fa0cbc883e1668004a528
+- Receipt status: 0x1
+- Block: 0x317d8d9
+- USDC transfer: 10000 atomic units from buyer to treasury
+- BaseScan display was not yet updated at verification time
