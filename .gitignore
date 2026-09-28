@@ -42,3 +42,18 @@ htmlcov/
 
 checkpoint.headers
 checkpoint.body
+
+# Local secrets and runtime artifacts
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*private*
+*secret*
+*credential*
+buyer-output.log
+unpaid.body
+unpaid.headers
+discovery.body
+discovery.headers

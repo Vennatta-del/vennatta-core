@@ -1,5 +1,7 @@
 import hashlib
+import ipaddress
 import re
+import socket
 import time
 from typing import Any
 from urllib.parse import urlparse
@@ -13,10 +15,47 @@ FETCH_TIMEOUT = 20.0
 ALLOWED_SCHEMES = {"http", "https"}
 
 
-def _validate_url(url: str) -> None:
+def _validate_url(url: str) -> str:
     parsed = urlparse(url)
-    if parsed.scheme not in ALLOWED_SCHEMES or not parsed.netloc:
-        raise ValueError("document_url must be a valid HTTP(S) URL")
+
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
+        raise ValueError(
+            "document_url must be a public HTTPS URL without credentials"
+        )
+
+    host = parsed.hostname.rstrip(".").lower()
+
+    try:
+        addresses = {
+            item[4][0]
+            for item in socket.getaddrinfo(
+                host,
+                443,
+                type=socket.SOCK_STREAM,
+            )
+        }
+    except socket.gaierror as exc:
+        raise ValueError("document host could not be resolved") from exc
+
+    for address in addresses:
+        ip = ipaddress.ip_address(address)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError("document host resolves to a non-public address")
+
+    return host
 
 
 async def load_document(
