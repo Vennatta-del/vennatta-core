@@ -10,4 +10,7 @@ Date: 2026-09-28
 - Buyer: 0x16864a8d99A66F3e9D3230FB9256753E7Fa640B4
 - Result: HTTP 200
 - Payment response header received
-- Settlement transaction verified from buyer output
+- HTTP 200 confirmed
+- Settlement transaction not independently verified
+- Returned transaction reference was malformed: 65 hex digits
+- Base RPC rejected the reference because of an odd number of digits
