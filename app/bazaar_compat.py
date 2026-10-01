@@ -34,4 +34,4 @@ def declare_body_discovery_extension(
 
     result.setdefault("info", {}).setdefault("input", {})["method"] = method
 
-    return result
+    return {"bazaar": result}
