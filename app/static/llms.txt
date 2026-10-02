@@ -1,0 +1,70 @@
+# Vennatta Core
+
+Vennatta Core provides paid, bounded document extraction for autonomous agents.
+
+## Production API
+
+Endpoint:
+https://vennatta-core.onrender.com/api/v1/extract-document
+
+Method:
+POST
+
+Content-Type:
+application/json
+
+The endpoint uses x402. An unpaid request returns HTTP 402 with a payment challenge. An x402-compatible buyer pays and retries the same request with the payment signature.
+
+## Payment
+
+Network:
+Base mainnet (`eip155:8453`)
+
+Asset:
+USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
+
+Price:
+10000 atomic units (`0.01 USDC`) per request
+
+Recipient:
+`0x98807Ecce0D4F555d0447F79E7BdD9AA2aF0b767`
+
+## Request
+
+JSON fields:
+
+- `document_text`: optional supplied text, maximum 2,000,000 characters.
+- `document_url`: optional public HTTP(S) document URL.
+- `extraction_mode`: `full`, `summary`, or `metadata`; defaults to `full`.
+
+Additional fields are rejected.
+
+Example:
+
+```json
+{
+  "document_text": "Ada Lovelace worked on the Analytical Engine.",
+  "extraction_mode": "full"
+}
+```
+
+## Response
+
+A successful paid request returns HTTP 200 and JSON extraction data. The response includes the x402 payment response header when settlement succeeds.
+
+## Buyer integration
+
+Use an x402 v2-compatible client. First request the endpoint, parse the `payment-required` header, select the exact Base mainnet requirement, sign locally, and retry with `PAYMENT-SIGNATURE`.
+
+Do not hard-code a payment payload. Always use the live challenge.
+
+## Limits
+
+- Maximum request body: 2.5 MB.
+- Maximum supplied document text: 2,000,000 characters.
+- Supported modes: `full`, `summary`, `metadata`.
+- Public HTTP(S) document fetching is bounded and SSRF-protected.
+
+## Contact
+
+For integration access, bulk usage, or marketplace partnerships, contact the Vennatta team.

@@ -1,0 +1,35 @@
+{
+  "name": "vennatta-core",
+  "description": "Paid bounded document extraction for autonomous agents.",
+  "transport": "https",
+  "endpoint": "https://vennatta-core.onrender.com/api/v1/extract-document",
+  "payment_protocol": "x402",
+  "network": "eip155:8453",
+  "asset": "USDC",
+  "price_atomic_units": "10000",
+  "price_display": "0.01 USDC",
+  "capabilities": [
+    "document_extraction",
+    "document_summary",
+    "document_metadata"
+  ],
+  "request_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "document_text": {
+        "type": "string",
+        "maxLength": 2000000
+      },
+      "document_url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "extraction_mode": {
+        "type": "string",
+        "enum": ["full", "summary", "metadata"],
+        "default": "full"
+      }
+    }
+  }
+}
