@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -171,6 +171,13 @@ app.mount(
     StaticFiles(directory="app/static/.well-known"),
     name="well-known",
 )
+
+@app.get("/llms.txt", include_in_schema=False)
+async def llms_txt() -> FileResponse:
+    return FileResponse(
+        Path(__file__).resolve().parent / "static" / "llms.txt",
+        media_type="text/plain; charset=utf-8",
+    )
 
 routes: dict[str, RouteConfig] = {
     "POST /api/v1/extract-document": RouteConfig(
