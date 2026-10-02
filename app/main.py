@@ -30,6 +30,8 @@ from x402.http.types import RouteConfig
 from x402.mechanisms.evm.exact import ExactEvmServerScheme
 
 from .config import Settings
+from .document_service import extract_document as build_extraction
+from .document_service import load_document
 from .security_middleware import ContentSizeLimitMiddleware
 
 
@@ -222,7 +224,24 @@ routes: dict[str, RouteConfig] = {
                 example={
                     "status": "success",
                     "data": {
-                        "extracted": "document data",
+                        "mode": "summary",
+                        "source_url": None,
+                        "summary": (
+                            "Ada Lovelace wrote notes about Charles Babbage's "
+                            "Analytical Engine."
+                        ),
+                        "entities": [
+                            "Ada Lovelace",
+                            "Charles Babbage",
+                            "Analytical Engine",
+                        ],
+                        "metadata": {
+                            "characters": 104,
+                            "words": 15,
+                            "sha256": "example_sha256",
+                            "processing_ms": 1,
+                            "content_type": None,
+                        },
                     },
                 },
                 schema={
@@ -232,9 +251,49 @@ routes: dict[str, RouteConfig] = {
                         "data": {
                             "type": "object",
                             "properties": {
-                                "extracted": {"type": "string"},
+                                "mode": {
+                                    "type": "string",
+                                    "enum": [
+                                        "full",
+                                        "summary",
+                                        "metadata",
+                                    ],
+                                },
+                                "source_url": {
+                                    "type": ["string", "null"],
+                                },
+                                "text": {"type": "string"},
+                                "summary": {"type": "string"},
+                                "entities": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "metadata": {
+                                    "type": "object",
+                                    "properties": {
+                                        "characters": {"type": "integer"},
+                                        "words": {"type": "integer"},
+                                        "sha256": {"type": "string"},
+                                        "processing_ms": {
+                                            "type": "integer",
+                                        },
+                                        "content_type": {
+                                            "type": ["string", "null"],
+                                        },
+                                    },
+                                    "required": [
+                                        "characters",
+                                        "words",
+                                        "sha256",
+                                        "processing_ms",
+                                    ],
+                                },
                             },
-                            "required": ["extracted"],
+                            "required": [
+                                "mode",
+                                "source_url",
+                                "metadata",
+                            ],
                         },
                     },
                     "required": ["status", "data"],
@@ -276,10 +335,47 @@ async def extract_document(
     request: Request,
     document: DocumentRequest,
 ) -> JSONResponse:
-    logger.info("Processing document request")
-    return JSONResponse(
-        {"status": "success", "data": {"extracted": "document data"}}
+    source_url = (
+        str(document.document_url)
+        if document.document_url is not None
+        else None
     )
+
+    logger.info(
+        "document_request mode=%s has_url=%s has_text=%s",
+        document.extraction_mode,
+        source_url is not None,
+        document.document_text is not None,
+    )
+
+    try:
+        text, content_type = await load_document(
+            document_url=source_url,
+            document_text=document.document_text,
+        )
+        data = build_extraction(
+            text=text,
+            source_url=source_url,
+            extraction_mode=document.extraction_mode,
+        )
+        data["metadata"]["content_type"] = content_type
+
+        return JSONResponse(
+            {
+                "status": "success",
+                "data": data,
+            }
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "error",
+                "error": "invalid_document",
+                "detail": str(exc),
+            },
+        )
+
 
 @app.post("/api/v1/extract-obsidian")
 async def extract_obsidian(

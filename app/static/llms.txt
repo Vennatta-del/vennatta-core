@@ -52,6 +52,14 @@ Example:
 
 A successful paid request returns HTTP 200 and JSON extraction data. The response includes the x402 payment response header when settlement succeeds.
 
+### Output by mode
+
+- `full`: normalized bounded text, short summary, detected capitalized-name entities, and metadata.
+- `summary`: short summary, detected capitalized-name entities, and metadata.
+- `metadata`: character count, word count, SHA-256 of normalized text, processing time, and source content type.
+
+The service returns only fields applicable to the selected mode. The application does not intentionally persist raw request text in its extraction response or application logs.
+
 ## Buyer integration
 
 Use an x402 v2-compatible client. First request the endpoint, parse the `payment-required` header, select the exact Base mainnet requirement, sign locally, and retry with `PAYMENT-SIGNATURE`.

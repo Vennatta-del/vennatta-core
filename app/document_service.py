@@ -106,8 +106,11 @@ def extract_document(
 ) -> dict[str, Any]:
     started = time.perf_counter()
     normalized = re.sub(r"\s+", " ", text).strip()
-    words = normalized.split()
 
+    if not normalized:
+        raise ValueError("document contains no extractable text")
+
+    words = normalized.split()
     entities = sorted(
         {
             match.group(0)
@@ -118,20 +121,38 @@ def extract_document(
         }
     )[:50]
 
+    metadata = {
+        "characters": len(normalized),
+        "words": len(words),
+        "sha256": hashlib.sha256(
+            normalized.encode("utf-8")
+        ).hexdigest(),
+        "processing_ms": round(
+            (time.perf_counter() - started) * 1000
+        ),
+    }
+
+    if extraction_mode == "metadata":
+        return {
+            "mode": "metadata",
+            "source_url": source_url,
+            "metadata": metadata,
+        }
+
+    if extraction_mode == "summary":
+        return {
+            "mode": "summary",
+            "source_url": source_url,
+            "summary": normalized[:500],
+            "entities": entities,
+            "metadata": metadata,
+        }
+
     return {
+        "mode": "full",
         "source_url": source_url,
-        "mode": extraction_mode,
-        "text": normalized[:10000],
+        "text": normalized[:10_000],
         "summary": normalized[:500],
         "entities": entities,
-        "metadata": {
-            "characters": len(normalized),
-            "words": len(words),
-            "sha256": hashlib.sha256(
-                normalized.encode("utf-8")
-            ).hexdigest(),
-            "processing_ms": round(
-                (time.perf_counter() - started) * 1000
-            ),
-        },
+        "metadata": metadata,
     }

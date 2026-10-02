@@ -26,6 +26,14 @@ Never fabricate or reuse a payment payload. Bind each payment to the live challe
 }
 ```
 
+### Output by mode
+
+- `full`: normalized bounded text, short summary, detected capitalized-name entities, and metadata.
+- `summary`: short summary, detected capitalized-name entities, and metadata.
+- `metadata`: character count, word count, SHA-256 of normalized text, processing time, and source content type.
+
+The service returns only fields applicable to the selected mode. The application does not intentionally persist raw request text in its extraction response or application logs.
+
 ## Production facts
 
 - Base mainnet: `eip155:8453`
