@@ -32,6 +32,7 @@ from x402.mechanisms.evm.exact import ExactEvmServerScheme
 from .config import Settings
 from .document_service import extract_document as build_extraction
 from .document_service import load_document
+from .evidence_service import compare_evidence
 from .security_middleware import ContentSizeLimitMiddleware
 
 
@@ -46,6 +47,28 @@ class DocumentRequest(BaseModel):
     extraction_mode: str = Field(
         default="full",
         pattern="^(full|summary|metadata)$",
+    )
+
+
+class EvidenceCompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    previous_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=2_000_000,
+    )
+    current_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=2_000_000,
+    )
+    source_url: HttpUrl | None = None
+    comparison_type: str = Field(
+        default="auto",
+        pattern=(
+            "^(auto|pricing|product|integration|security|policy)$"
+        ),
     )
 
 
@@ -180,6 +203,196 @@ async def llms_txt() -> FileResponse:
     )
 
 routes: dict[str, RouteConfig] = {
+    "POST /api/v1/evidence/compare": RouteConfig(
+        accepts=[
+            PaymentOption(
+                scheme="exact",
+                price="$0.01",
+                network=settings.network,
+                pay_to=settings.pay_to,
+            )
+        ],
+        mime_type="application/json",
+        description=(
+            "Compare two supplied public-source text versions and "
+            "return bounded, hash-backed evidence of change."
+        ),
+        service_name="Vennatta Evidence Compare",
+        tags=["evidence", "comparison", "research"],
+        extensions=declare_body_discovery_extension(
+            input={
+                "previous_text": (
+                    "Enterprise plans are available monthly."
+                ),
+                "current_text": (
+                    "Enterprise plans are billed annually."
+                ),
+                "source_url": "https://example.com/pricing",
+                "comparison_type": "auto",
+            },
+            input_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "previous_text": {
+                        "type": "string",
+                        "description": (
+                            "Previous version of the supplied public-source "
+                            "text."
+                        ),
+                        "minLength": 1,
+                        "maxLength": 2_000_000,
+                    },
+                    "current_text": {
+                        "type": "string",
+                        "description": (
+                            "Current version of the supplied public-source "
+                            "text."
+                        ),
+                        "minLength": 1,
+                        "maxLength": 2_000_000,
+                    },
+                    "source_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": (
+                            "Optional source URL associated with both "
+                            "submitted versions."
+                        ),
+                    },
+                    "comparison_type": {
+                        "type": "string",
+                        "enum": [
+                            "auto",
+                            "pricing",
+                            "product",
+                            "integration",
+                            "security",
+                            "policy",
+                        ],
+                        "default": "auto",
+                        "description": (
+                            "Optional bounded category hint for the "
+                            "comparison."
+                        ),
+                    },
+                },
+                "required": ["previous_text", "current_text"],
+            },
+            body_type="json",
+            method="POST",
+            output=OutputConfig(
+                example={
+                    "status": "success",
+                    "data": {
+                        "schema_version": (
+                            "vennatta.evidence-event.v0.1"
+                        ),
+                        "source_url": "https://example.com/pricing",
+                        "change_detected": True,
+                        "previous_sha256": (
+                            "example_previous_sha256"
+                        ),
+                        "current_sha256": (
+                            "example_current_sha256"
+                        ),
+                        "change_type": "pricing_change",
+                        "summary": (
+                            "Detected a normalized text change in the "
+                            "submitted versions."
+                        ),
+                        "added_evidence": [
+                            "Enterprise plans are billed annually."
+                        ],
+                        "removed_evidence": [
+                            "Enterprise plans are available monthly."
+                        ],
+                        "metadata": {
+                            "previous_characters": 39,
+                            "current_characters": 40,
+                            "processing_ms": 1,
+                        },
+                    },
+                },
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "status": {"type": "string"},
+                        "data": {
+                            "type": "object",
+                            "properties": {
+                                "schema_version": {"type": "string"},
+                                "source_url": {
+                                    "type": ["string", "null"],
+                                },
+                                "change_detected": {
+                                    "type": "boolean",
+                                },
+                                "previous_sha256": {
+                                    "type": "string",
+                                },
+                                "current_sha256": {
+                                    "type": "string",
+                                },
+                                "change_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "pricing_change",
+                                        "product_change",
+                                        "integration_change",
+                                        "security_change",
+                                        "policy_change",
+                                        "unknown",
+                                    ],
+                                },
+                                "summary": {"type": "string"},
+                                "added_evidence": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "removed_evidence": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "metadata": {
+                                    "type": "object",
+                                    "properties": {
+                                        "previous_characters": {
+                                            "type": "integer",
+                                        },
+                                        "current_characters": {
+                                            "type": "integer",
+                                        },
+                                        "processing_ms": {
+                                            "type": "integer",
+                                        },
+                                    },
+                                    "required": [
+                                        "previous_characters",
+                                        "current_characters",
+                                        "processing_ms",
+                                    ],
+                                },
+                            },
+                            "required": [
+                                "schema_version",
+                                "source_url",
+                                "change_detected",
+                                "previous_sha256",
+                                "current_sha256",
+                                "change_type",
+                                "summary",
+                                "added_evidence",
+                                "removed_evidence",
+                                "metadata",
+                            ],
+                        },
+                    },
+                    "required": ["status", "data"],
+                },
+            ),
+        ),
+    ),
     "POST /api/v1/extract-document": RouteConfig(
         accepts=[
             PaymentOption(
@@ -336,6 +549,47 @@ async def root() -> dict[str, Any]:
         "chains": ["Base"],
         "payment_protocol": "x402",
     }
+
+@app.post("/api/v1/evidence/compare")
+async def compare_evidence_endpoint(
+    request: Request,
+    comparison: EvidenceCompareRequest,
+) -> JSONResponse:
+    source_url = (
+        str(comparison.source_url)
+        if comparison.source_url is not None
+        else None
+    )
+
+    logger.info(
+        "evidence_compare_request type=%s has_url=%s",
+        comparison.comparison_type,
+        source_url is not None,
+    )
+
+    try:
+        data = compare_evidence(
+            previous_text=comparison.previous_text,
+            current_text=comparison.current_text,
+            source_url=source_url,
+            comparison_type=comparison.comparison_type,
+        )
+        return JSONResponse(
+            {
+                "status": "success",
+                "data": data,
+            }
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "error",
+                "error": "invalid_evidence",
+                "detail": str(exc),
+            },
+        )
+
 
 @app.post("/api/v1/extract-document")
 async def extract_document(
