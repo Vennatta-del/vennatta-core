@@ -7,7 +7,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: VENNATTA_RPC_URL
-        value: https://mainnet.base.org
+        value: "https://mainnet.base.org"
       - key: VENNATTA_NETWORK
         value: eip155:8453
       - key: VENNATTA_FACILITATOR_URL

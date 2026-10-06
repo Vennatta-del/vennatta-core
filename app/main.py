@@ -33,6 +33,12 @@ from .config import Settings
 from .document_service import extract_document as build_extraction
 from .document_service import load_document
 from .evidence_service import compare_evidence
+from .bgp_service import (
+    MAX_TEXT_CHARS,
+    bgp_brief_output_schema,
+    build_bgp_brief,
+)
+from .solana_payments import configure_bgp_solana
 from .security_middleware import ContentSizeLimitMiddleware
 
 
@@ -48,6 +54,15 @@ class DocumentRequest(BaseModel):
         default="full",
         pattern="^(full|summary|metadata)$",
     )
+
+
+
+class BgpBriefRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    previous_text: str = Field(..., min_length=1, max_length=MAX_TEXT_CHARS)
+    current_text: str = Field(..., min_length=1, max_length=MAX_TEXT_CHARS)
+    source_url: HttpUrl | None = None
 
 
 class EvidenceCompareRequest(BaseModel):
@@ -203,6 +218,64 @@ async def llms_txt() -> FileResponse:
     )
 
 routes: dict[str, RouteConfig] = {
+
+    "POST /api/v1/briefs/bgp-routing": RouteConfig(
+        accepts=[
+            PaymentOption(
+                scheme="exact",
+                price="$0.05",
+                network=settings.network,
+                pay_to=settings.pay_to,
+            )
+        ],
+        mime_type="application/json",
+        description=(
+            "Compare supplied routing-notice versions and return "
+            "bounded evidence, validated network identifiers, and hashes."
+        ),
+        service_name="Vennatta BGP Routing Evidence Brief",
+        tags=["bgp", "routing", "evidence"],
+        extensions=declare_body_discovery_extension(
+            input={
+                "previous_text": "AS64500 advertises 203.0.113.0/24.",
+                "current_text": "AS64500 advertises 198.51.100.0/24.",
+            },
+            input_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "previous_text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_TEXT_CHARS,
+                    },
+                    "current_text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": MAX_TEXT_CHARS,
+                    },
+                    "source_url": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                    },
+                },
+                "required": ["previous_text", "current_text"],
+            },
+            body_type="json",
+            method="POST",
+            output=OutputConfig(
+                example={
+                    "status": "success",
+                    "data": build_bgp_brief(
+                        previous_text="AS64500 advertises 203.0.113.0/24.",
+                        current_text="AS64500 advertises 198.51.100.0/24.",
+                    ),
+                },
+                schema=bgp_brief_output_schema(),
+            ),
+        ),
+    ),
+
     "POST /api/v1/evidence/compare": RouteConfig(
         accepts=[
             PaymentOption(
@@ -536,6 +609,11 @@ routes: dict[str, RouteConfig] = {
 }
 
 
+configure_bgp_solana(
+    server, routes["POST /api/v1/briefs/bgp-routing"]
+)
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "healthy"}
@@ -549,6 +627,34 @@ async def root() -> dict[str, Any]:
         "chains": ["Base"],
         "payment_protocol": "x402",
     }
+
+
+@app.post("/api/v1/briefs/bgp-routing")
+async def bgp_brief_endpoint(
+    request: Request,
+    brief: BgpBriefRequest,
+) -> JSONResponse:
+    source_url = str(brief.source_url) if brief.source_url is not None else None
+    logger.info("bgp_brief_request has_url=%s", source_url is not None)
+
+    try:
+        data = build_bgp_brief(
+            previous_text=brief.previous_text,
+            current_text=brief.current_text,
+            source_url=source_url,
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "status": "error",
+                "error": "invalid_bgp_brief",
+                "detail": str(exc),
+            },
+        )
+
+    return JSONResponse({"status": "success", "data": data})
+
 
 @app.post("/api/v1/evidence/compare")
 async def compare_evidence_endpoint(

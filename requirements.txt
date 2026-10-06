@@ -9,7 +9,7 @@ aiofiles>=24.1.0
 jsonschema>=4.0.0
 
 # Solana support
-solana>=0.32.0
+solana>=0.32.0,<0.40
 solders>=0.21.0
 base58>=2.1.0
 
