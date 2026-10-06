@@ -1,10 +1,40 @@
 """Optional Solana BGP checkout; disabled unless explicitly configured."""
 
 import os
+from pathlib import Path
+
+
+def _solana_setting(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value is not None:
+        return value.strip()
+
+    try:
+        value = (Path("/etc/secrets") / name).read_text(
+            encoding="utf-8"
+        ).strip()
+    except FileNotFoundError:
+        return default
+
+    prefix = name + "="
+    if value.startswith(prefix):
+        value = value[len(prefix):].strip()
+
+    if (
+        len(value) >= 2
+        and value[0] == value[-1]
+        and value[0] in ("'", '"')
+    ):
+        value = value[1:-1].strip()
+
+    if not value or "\n" in value or "\r" in value:
+        raise RuntimeError(f"{name} secret file must contain one nonempty value")
+
+    return value
 
 
 def configure_bgp_solana(server, route):
-    enabled = os.getenv("VENNATTA_SOLANA_ENABLED", "false").strip().lower()
+    enabled = _solana_setting("VENNATTA_SOLANA_ENABLED", "false").lower()
     if enabled not in {"true", "false"}:
         raise RuntimeError("VENNATTA_SOLANA_ENABLED must be true or false")
     if enabled == "false":
@@ -15,7 +45,7 @@ def configure_bgp_solana(server, route):
     from x402.mechanisms.svm.constants import SOLANA_MAINNET_CAIP2
     from x402.mechanisms.svm.exact import ExactSvmServerScheme
 
-    recipient = os.getenv("VENNATTA_SOLANA_PAY_TO", "").strip()
+    recipient = _solana_setting("VENNATTA_SOLANA_PAY_TO")
     if not recipient:
         raise RuntimeError("Enabled Solana requires VENNATTA_SOLANA_PAY_TO")
     try:
