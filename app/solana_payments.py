@@ -33,7 +33,8 @@ def _solana_setting(name: str, default: str = "") -> str:
     return value
 
 
-def configure_bgp_solana(server, route):
+def configure_solana_routes(server, route_prices):
+    """Add optional Solana checkout to explicitly selected seller routes."""
     enabled = _solana_setting("VENNATTA_SOLANA_ENABLED", "false").lower()
     if enabled not in {"true", "false"}:
         raise RuntimeError("VENNATTA_SOLANA_ENABLED must be true or false")
@@ -53,12 +54,34 @@ def configure_bgp_solana(server, route):
     except ValueError as exc:
         raise RuntimeError("Invalid Solana receiving address") from exc
 
-    option = PaymentOption(
-        scheme="exact",
-        price="$0.05",
-        network=SOLANA_MAINNET_CAIP2,
-        pay_to=recipient,
-    )
+    selected = list(route_prices)
+    if not selected:
+        raise RuntimeError("At least one Solana seller route is required")
+
+    seen = set()
+    options = []
+    for route, price in selected:
+        if id(route) in seen:
+            raise RuntimeError("Duplicate Solana seller route")
+        seen.add(id(route))
+        if any(
+            str(getattr(option, "network", None)) == str(SOLANA_MAINNET_CAIP2)
+            for option in route.accepts
+        ):
+            raise RuntimeError("Solana is already configured for this route")
+        options.append((route, PaymentOption(
+            scheme="exact",
+            price=price,
+            network=SOLANA_MAINNET_CAIP2,
+            pay_to=recipient,
+        )))
+
     server.register(SOLANA_MAINNET_CAIP2, ExactSvmServerScheme())
-    route.accepts.append(option)
+    for route, option in options:
+        route.accepts.append(option)
     return True
+
+
+def configure_bgp_solana(server, route):
+    """Compatibility helper for the existing BGP configuration tests."""
+    return configure_solana_routes(server, [(route, "$0.05")])

@@ -38,7 +38,7 @@ from .bgp_service import (
     bgp_brief_output_schema,
     build_bgp_brief,
 )
-from .solana_payments import configure_bgp_solana
+from .solana_payments import configure_solana_routes
 from .seller_capabilities import seller_capabilities
 from .security_middleware import ContentSizeLimitMiddleware
 
@@ -356,38 +356,19 @@ routes: dict[str, RouteConfig] = {
             body_type="json",
             method="POST",
             output=OutputConfig(
-                example={
-                    "status": "success",
-                    "data": {
-                        "schema_version": (
-                            "vennatta.evidence-event.v0.1"
-                        ),
-                        "source_url": "https://example.com/pricing",
-                        "change_detected": True,
-                        "previous_sha256": (
-                            "example_previous_sha256"
-                        ),
-                        "current_sha256": (
-                            "example_current_sha256"
-                        ),
-                        "change_type": "pricing_change",
-                        "summary": (
-                            "Detected a normalized text change in the "
-                            "submitted versions."
-                        ),
-                        "added_evidence": [
-                            "Enterprise plans are billed annually."
-                        ],
-                        "removed_evidence": [
-                            "Enterprise plans are available monthly."
-                        ],
-                        "metadata": {
-                            "previous_characters": 39,
-                            "current_characters": 40,
-                            "processing_ms": 1,
-                        },
-                    },
-                },
+                example={'status': 'success',
+                         'data': {'schema_version': 'vennatta.evidence-event.v0.1',
+                                  'source_url': 'https://example.com/pricing',
+                                  'change_detected': True,
+                                  'previous_sha256': 'fdcac1a67a1e448c46789e7351bc8f297958949203c73a4893ed99076045eaae',
+                                  'current_sha256': '5a76b26e9a5d190591bfdaa2b38cdbef69b42d9c692e489e8d2e00361dff7b66',
+                                  'change_type': 'pricing_change',
+                                  'summary': 'Detected a normalized text change in the submitted versions.',
+                                  'added_evidence': ['Enterprise plans are billed annually.'],
+                                  'removed_evidence': ['Enterprise plans are available monthly.'],
+                                  'metadata': {'previous_characters': 39,
+                                               'current_characters': 37,
+                                               'processing_ms': 0}}},
                 schema={
                     "type": "object",
                     "properties": {
@@ -479,7 +460,7 @@ routes: dict[str, RouteConfig] = {
         mime_type="application/json",
         description=(
             "Extract structured text, summaries, or metadata from supplied "
-            "document text or a public HTTP(S) document URL."
+            "document text or a public HTTPS document URL."
         ),
         service_name="Vennatta Document Extraction",
         tags=["documents", "extraction", "research"],
@@ -502,7 +483,7 @@ routes: dict[str, RouteConfig] = {
                     "document_url": {
                         "type": "string",
                         "format": "uri",
-                        "description": "Public HTTP(S) document URL.",
+                        "description": "Public HTTPS document URL.",
                     },
                     "extraction_mode": {
                         "type": "string",
@@ -515,29 +496,17 @@ routes: dict[str, RouteConfig] = {
             body_type="json",
             method="POST",
             output=OutputConfig(
-                example={
-                    "status": "success",
-                    "data": {
-                        "mode": "summary",
-                        "source_url": None,
-                        "summary": (
-                            "Ada Lovelace wrote notes about Charles Babbage's "
-                            "Analytical Engine."
-                        ),
-                        "entities": [
-                            "Ada Lovelace",
-                            "Charles Babbage",
-                            "Analytical Engine",
-                        ],
-                        "metadata": {
-                            "characters": 104,
-                            "words": 15,
-                            "sha256": "example_sha256",
-                            "processing_ms": 1,
-                            "content_type": None,
-                        },
-                    },
-                },
+                example={'status': 'success',
+                         'data': {'mode': 'full',
+                                  'source_url': None,
+                                  'text': 'Ada Lovelace worked on the Analytical Engine.',
+                                  'summary': 'Ada Lovelace worked on the Analytical Engine.',
+                                  'entities': ['Ada Lovelace', 'Analytical Engine'],
+                                  'metadata': {'characters': 45,
+                                               'words': 7,
+                                               'sha256': 'fd245452f51f026218c23aba3be37b5a28a13497f12f763756ac3ae712612450',
+                                               'processing_ms': 0,
+                                               'content_type': None}}},
                 schema={
                     "type": "object",
                     "properties": {
@@ -610,9 +579,11 @@ routes: dict[str, RouteConfig] = {
 }
 
 
-configure_bgp_solana(
-    server, routes["POST /api/v1/briefs/bgp-routing"]
-)
+configure_solana_routes(server, [
+    (routes["POST /api/v1/briefs/bgp-routing"], "$0.05"),
+    (routes["POST /api/v1/evidence/compare"], "$0.01"),
+    (routes["POST /api/v1/extract-document"], "$0.01"),
+])
 
 
 @app.get("/health")
