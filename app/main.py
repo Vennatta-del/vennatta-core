@@ -39,6 +39,7 @@ from .bgp_service import (
     build_bgp_brief,
 )
 from .solana_payments import configure_bgp_solana
+from .seller_capabilities import seller_capabilities
 from .security_middleware import ContentSizeLimitMiddleware
 
 
@@ -624,7 +625,7 @@ async def root() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "vennatta-core",
-        "chains": ["Base"],
+        **seller_capabilities(routes),
         "payment_protocol": "x402",
     }
 
