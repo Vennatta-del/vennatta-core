@@ -1,0 +1,112 @@
+"""Private read-only MCP service. Run separately from the paid gateway."""
+import hmac
+import json
+import os
+
+import httpx
+from mcp.server.fastmcp import FastMCP
+
+GATEWAY = "https://vennatta-core.onrender.com"
+MAX_BODY = 131072
+mcp = FastMCP("Vennatta Private Bridge", stateless_http=True, json_response=True)
+
+
+async def gateway_read(path: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            async with client.stream("GET", GATEWAY + path) as response:
+                if response.status_code != 200:
+                    return {"status": "unavailable", "http_status": response.status_code}
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > MAX_BODY:
+                        return {"status": "unavailable", "reason": "response_too_large"}
+                data = json.loads(body)
+                if not isinstance(data, dict):
+                    return {"status": "unavailable", "reason": "invalid_response"}
+                return {"status": "observed", "source": GATEWAY + path, "data": data}
+    except (httpx.HTTPError, ValueError):
+        return {"status": "unavailable", "reason": "gateway_read_failed"}
+
+
+@mcp.tool()
+async def get_gateway_health() -> dict:
+    """Observe gateway health now; does not establish settlement or worker health."""
+    return await gateway_read("/health")
+
+
+@mcp.tool()
+async def get_seller_capabilities() -> dict:
+    """Read gateway-reported capabilities; metadata is not a paid execution test."""
+    return await gateway_read("/")
+
+
+@mcp.tool()
+def get_bridge_status() -> dict:
+    """Report this bridge's actual scope and explicitly missing integrations."""
+    return {
+        "version": "0.1.0",
+        "mode": "read_only",
+        "connected": ["gateway_health", "seller_capabilities"],
+        "not_connected": ["treasury", "authority_manifest", "vault",
+                          "opportunities", "workers", "execution_receipts"],
+        "can_sign": False,
+        "can_trade": False,
+        "can_submit_tasks": False,
+    }
+
+
+class ApiKeyGate:
+    def __init__(self, wrapped, token: str):
+        if len(token) < 32:
+            raise RuntimeError("VENNATTA_MCP_API_KEY must contain at least 32 characters")
+        self.wrapped = wrapped
+        self.token = token.encode("utf-8")
+
+    async def reject(self, send, status: int, error: str):
+        body = json.dumps({"error": error}).encode()
+        await send({"type": "http.response.start", "status": status,
+                    "headers": [(b"content-type", b"application/json"),
+                                (b"cache-control", b"no-store")]})
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return await self.wrapped(scope, receive, send)
+        if scope["type"] != "http":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        credentials = [v for k, v in scope.get("headers", [])
+                       if k.lower() in (b"authorization", b"x-api-key")]
+        if len(credentials) != 1:
+            return await self.reject(send, 401, "unauthorized")
+        credential = credentials[0]
+        if credential.startswith(b"Bearer "):
+            credential = credential[7:]
+        if not hmac.compare_digest(credential, self.token):
+            return await self.reject(send, 401, "unauthorized")
+        body = bytearray()
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            body.extend(message.get("body", b""))
+            if len(body) > MAX_BODY:
+                return await self.reject(send, 413, "request_too_large")
+            if not message.get("more_body", False):
+                break
+        delivered = False
+
+        async def replay():
+            nonlocal delivered
+            if not delivered:
+                delivered = True
+                return {"type": "http.request", "body": bytes(body), "more_body": False}
+            return await receive()
+
+        return await self.wrapped(scope, replay, send)
+
+
+def create_app():
+    return ApiKeyGate(mcp.streamable_http_app(), os.environ.get("VENNATTA_MCP_API_KEY", ""))
