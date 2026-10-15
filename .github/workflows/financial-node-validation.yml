@@ -1,0 +1,27 @@
+name: Financial node validation
+on:
+  push:
+    branches: [feature/financial-intelligence-worker]
+    paths:
+      - 'intelligence_worker/**'
+      - '.github/workflows/financial-node-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run offline unit tests
+        run: python3 -m unittest discover -s intelligence_worker -p 'test_node.py' -v
+      - name: Run one live market observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE="$(mktemp -d)"
+          trap 'rm -rf -- "$STATE"' EXIT
+          python3 intelligence_worker/node.py --state "$STATE" --once
