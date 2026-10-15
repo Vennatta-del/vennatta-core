@@ -6,10 +6,29 @@ from pathlib import Path
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 GATEWAY = "https://vennatta-core.onrender.com"
 MAX_BODY = 131072
-mcp = FastMCP("Vennatta Private Bridge", stateless_http=True, json_response=True)
+mcp = FastMCP(
+    "Vennatta Private Bridge",
+    stateless_http=True,
+    json_response=True,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "vennatta-mcp-bridge.onrender.com",
+            "vennatta-mcp-bridge.onrender.com:443",
+            "127.0.0.1:*",
+            "localhost:*",
+        ],
+        allowed_origins=[
+            "https://vennatta-mcp-bridge.onrender.com",
+            "https://www.perplexity.ai",
+            "https://perplexity.ai",
+        ],
+    ),
+)
 
 
 async def gateway_read(path: str) -> dict:
