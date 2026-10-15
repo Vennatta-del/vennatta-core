@@ -2,6 +2,7 @@
 import hmac
 import json
 import os
+from pathlib import Path
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -108,5 +109,18 @@ class ApiKeyGate:
         return await self.wrapped(scope, replay, send)
 
 
+def load_api_key() -> str:
+    token = os.environ.get("VENNATTA_MCP_API_KEY", "")
+    if token:
+        return token
+    try:
+        return Path("/etc/secrets/VENNATTA_MCP_API_KEY").read_text(encoding="utf-8").rstrip("\r\n")
+    except FileNotFoundError:
+        return ""
+    except (OSError, UnicodeError):
+        raise RuntimeError("Unable to load MCP secret file") from None
+
+
 def create_app():
-    return ApiKeyGate(mcp.streamable_http_app(), os.environ.get("VENNATTA_MCP_API_KEY", ""))
+    token = load_api_key()
+    return ApiKeyGate(mcp.streamable_http_app(), token)
