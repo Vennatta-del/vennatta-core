@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from .treasury_reads import ObservationError, configured_urls, register_treasury_tools
 
 GATEWAY = "https://vennatta-core.onrender.com"
 MAX_BODY = 131072
@@ -29,6 +30,7 @@ mcp = FastMCP(
         ],
     ),
 )
+register_treasury_tools(mcp)
 
 
 async def gateway_read(path: str) -> dict:
@@ -64,13 +66,22 @@ async def get_seller_capabilities() -> dict:
 
 @mcp.tool()
 def get_bridge_status() -> dict:
-    """Report this bridge's actual scope and explicitly missing integrations."""
+    """Report installed tools and configuration, not unobserved provider health."""
+    try:
+        configured_urls()
+        rpc_configuration = "configured_not_live_verified"
+    except ObservationError as exc:
+        rpc_configuration = str(exc)
+    except ValueError:
+        rpc_configuration = "RPC_NOT_CONFIGURED"
     return {
-        "version": "0.1.0",
+        "version": "0.2.0",
         "mode": "read_only",
         "connected": ["gateway_health", "seller_capabilities"],
-        "not_connected": ["treasury", "authority_manifest", "vault",
-                          "opportunities", "workers", "execution_receipts"],
+        "installed_adapters": ["base_treasury_snapshot", "base_usdc_payment_verification"],
+        "treasury_rpc_configuration": rpc_configuration,
+        "not_connected": ["authority_manifest", "vault", "opportunities",
+                          "workers", "execution_receipts"],
         "can_sign": False,
         "can_trade": False,
         "can_submit_tasks": False,

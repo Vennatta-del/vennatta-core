@@ -77,7 +77,8 @@ class ProtocolTests(unittest.TestCase):
         self.assertIn('serverInfo', result)
         result = self.rpc(2, 'tools/list')
         names = {tool['name'] for tool in result['tools']}
-        self.assertEqual(names, {'get_gateway_health', 'get_seller_capabilities', 'get_bridge_status'})
+        self.assertEqual(names, {'get_gateway_health', 'get_seller_capabilities', 'get_bridge_status',
+                                 'get_treasury_snapshot', 'verify_treasury_payment'})
         result = self.rpc(3, 'tools/call', {'name': 'get_bridge_status', 'arguments': {}})
         self.assertFalse(result.get('isError', False))
         import json
