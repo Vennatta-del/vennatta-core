@@ -1,0 +1,14 @@
+services:
+  - type: worker
+    name: vennatta-financial-intelligence
+    runtime: python
+    region: virginia
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: off
+    buildCommand: python -m unittest discover -s intelligence_worker -p 'test_node.py' -v
+    startCommand: python -u intelligence_worker/node.py --state /var/data/vennatta-node
+    disk:
+      name: node-evidence
+      mountPath: /var/data
+      sizeGB: 1
